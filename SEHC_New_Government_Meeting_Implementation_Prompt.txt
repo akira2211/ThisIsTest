@@ -1,0 +1,360 @@
+TASK: Implement New Government Meeting Page – UI, Backend, JSON Database & VIP KPI Integration
+
+PROJECT: SEHC – AI Government Relations Intelligence Platform
+
+1. PROJECT CONTEXT
+
+Existing technology:
+- Frontend: React + TypeScript + Vite
+- Backend: Node.js + TypeScript
+- Database: JSON files
+- Monorepo with apps/, packages/, data/
+
+Current structure:
+FinanceProject/
+├── apps/
+│   ├── api/
+│   │   ├── src/
+│   │   └── tests/
+│   └── web/
+│       ├── public/
+│       └── src/
+├── packages/
+│   ├── config/
+│   ├── db/
+│   ├── schemas/
+│   └── shared/
+├── data/
+│   ├── uploads/
+│   ├── vips.json
+│   ├── government_meetings.json
+│   ├── users.json
+│   ├── user_audit_logs.json
+│   └── _sequences.json
+└── package.json
+
+IMPORTANT:
+Before implementing, inspect the repository, current meeting frontend/backend, data/government_meetings.json, data/vips.json, existing schemas, API, persistence, authentication, permissions, and ID generators. Reuse existing components and functions. Do not introduce another database, recreate the application, overwrite records, break migration features, or rename legacy JSON fields.
+
+2. NEW GOVERNMENT MEETING – UI DESIGN
+
+Redesign the existing New Meeting page to match the established SEHC History Report and Dashboard visual style: premium enterprise, blue/white AI-inspired theme, subtle glassmorphism, rounded cards, soft shadows, light-blue gradients, consistent typography, modern icons, responsive layout, and restrained hover/focus effects. Preserve the existing global header and sidebar.
+
+Page header:
+- Title: New Government Meeting
+- Subtitle: Create a new government engagement record.
+- Actions: Save Draft, Cancel, Create Meeting
+
+Use two columns on desktop.
+
+LEFT COLUMN
+Card 1 – Basic Information:
+- Meeting ID: read-only, generated automatically
+- Title: required text
+- Description: optional textarea
+- Meeting Type: required dropdown
+- Activity Category: required dropdown
+- Meeting Date: required date
+- Duration (minutes): optional number
+- Host Organization: required text
+- Location: required text
+- Purpose of Meeting: required textarea
+- Created By: read-only, authenticated user
+
+Meeting Type options: Meeting, Event, Dialogue, Audit, Visiting, Forum, Training, Seminar, Meal, Send OL, Other.
+Activity Category options: 1 – Cooperation; 2 – Communication; 3 – CSR Activities; 4 – Other Matters.
+
+Card 2 – Meeting Content:
+- Agenda
+- Meeting Summary (required)
+- Additional meeting details
+
+RIGHT COLUMN
+Card 3 – Attendees:
+- Company Attendees
+- External Attendees
+- AI-inspired VIP Matching panel: extract names, compare with vips.json, display matched VIPs and scores, confirm/reject/edit matches, prevent duplicates.
+- Status colors: Green = Matched; Orange = Needs Review; Gray = Not Found.
+- Buttons: Match VIPs; Add/Edit VIP Attendees Manually.
+
+Card 4 – Attachments & Notes:
+- Drag-and-drop and browse upload
+- Multiple attachments, upload progress, file list/preview, remove before save
+- Additional Notes
+- Support PDF, Word, Excel, PowerPoint, images, TXT, CSV
+- Server-side MIME/extension/size validation; configurable default maximum 10 MB per file.
+
+3. EXISTING JSON DATABASE COMPATIBILITY
+
+Existing government_meetings.json structure:
+{
+  "government_meetings": [
+    {
+      "date": "2026-05-05",
+      "type": "Meeting",
+      "activity_category": "1",
+      "place": "HCMC People's Committee Office",
+      "hosted": "Ho Chi Minh City People's Committee",
+      "meeting_display_id": "ZM2026-00067",
+      "year": 2026,
+      "month": 5,
+      "purpose": "Meeting purpose",
+      "attendees": "Attendees information",
+      "networking": "Networking information",
+      "main_content": "Meeting summary",
+      "note": null,
+      "attachments": null,
+      "created_by": 1,
+      "created_at": "2026-09-24 05:48:37",
+      "migration_batch_id": 3,
+      "migration_provenance_id": null,
+      "is_draft": false,
+      "draft_saved_at": null,
+      "id": 528,
+      "status": "completed"
+    }
+  ]
+}
+
+Do not replace the schema or rename existing fields. Preserve all historical records. Extend only where necessary with optional fields:
+{
+  "title": "",
+  "description": "",
+  "duration_minutes": null,
+  "agenda": "",
+  "company_attendees": "",
+  "external_attendees": "",
+  "vip_ids": [],
+  "vip_match_results": [],
+  "linked_request_ids": [],
+  "updated_at": null,
+  "updated_by": null
+}
+
+Mapping:
+- Meeting Date -> date
+- Meeting Type -> type
+- Activity Category -> activity_category
+- Location -> place
+- Host Organization -> hosted
+- Purpose -> purpose
+- Meeting Summary -> main_content
+- Additional Notes -> note
+
+Retain date, type, activity_category, place, hosted, meeting_display_id, year, month, purpose, attendees, networking, main_content, note, attachments, created_by, created_at, migration_batch_id, migration_provenance_id, is_draft, draft_saved_at, id, status. Preserve legacy attendees/networking data; inspect their actual meanings before changing. Derive year/month from date on the server. Handle null/missing optional fields.
+
+4. MEETING ID GENERATION
+
+Two IDs already exist:
+- id: internal numeric ID, e.g. 528
+- meeting_display_id: readable ID, e.g. ZM2026-00067
+
+Reuse existing generator and inspect _sequences.json. Never duplicate IDs or generate authoritative IDs in the frontend. Preserve existing values and the current ID lifecycle. Handle concurrent creation safely.
+
+5. ATTACHMENT STORAGE
+
+Use data/uploads/government_meetings/<meeting_id>/, e.g.:
+data/uploads/government_meetings/528/attachment_001.pdf
+
+Store metadata in the meeting JSON, e.g.:
+{
+  "attachments": [
+    {
+      "id": "att_001",
+      "original_name": "meeting_report.pdf",
+      "stored_name": "attachment_001.pdf",
+      "path": "government_meetings/528/attachment_001.pdf",
+      "mime_type": "application/pdf",
+      "size": 125000,
+      "uploaded_at": "2026-10-14T10:00:00+07:00"
+    }
+  ]
+}
+
+Use relative paths, safe generated filenames, path-traversal prevention, server-side MIME/extension/size validation, authenticated/authorized download and preview. Support multiple files and legacy attachments:null. On failed saves clean staged uploads; preserve references on draft/edit; only delete files when explicitly requested. Never embed binary contents in JSON or expose arbitrary server paths.
+
+6. EXTERNAL ATTENDEES – VIP MATCHING
+
+When external attendees are entered, extract candidate names and compare with vips.json.
+Example: "Nguyễn Văn Đức; Lê Văn Danh,\nThái Minh Giao"
+
+Preprocess Unicode NFC, trim, collapse spaces, case normalization and punctuation. Split on semicolons, commas, newlines, bullets. Handle periods carefully because titles/abbreviations may contain periods. Preserve original input and do not assume all segments are person names. Extract title context, e.g. "Nguyễn Văn Đức (Chairman)" -> name "Nguyễn Văn Đức", title "Chairman".
+
+Match in this order:
+1. Exact normalized name
+2. Accent-insensitive name
+3. Fuzzy similarity (Levenshtein/Jaro-Winkler or equivalent)
+4. Organization/title context to resolve ambiguity
+
+No external paid AI API is required. Suggested configurable thresholds: >=0.95 high confidence; 0.80–0.95 needs review; <0.80 unmatched. These are starting thresholds, not identity proof. Auto-confirm only unambiguous strict matches. Require manual confirmation for similarly named VIPs.
+
+UI shows extracted name, suggested VIP, department, title, score, status. Allow confirm/reject/search/replace. Never silently correct an uncertain name. Persist only confirmed IDs, using the actual VIP ID format from vips.json:
+{"vip_ids":["VIP-202608-00001","VIP-202608-00003"]}
+The IDs above are illustrative, not a mandated format.
+
+7. VIP MEETING HISTORY INTEGRATION
+
+After a completed meeting is saved:
+1. Read confirmed VIP IDs.
+2. Locate matching VIP records.
+3. Associate meeting with each VIP.
+4. Synchronize VIP meeting history.
+5. Recalculate Engagement KPI.
+
+The government meeting is the authoritative source; do not duplicate entire meeting records in VIPs. Suggested reference (adapt to existing schema):
+{"meeting_id":528,"date":"2026-05-05","status":"completed"}
+
+Inspect the existing meetings field in vips.json and preserve legacy history. Use internal meeting ID, prevent duplicates. On edit, add new references, remove obsolete references, preserve unrelated meetings. On deletion/restoration update KPI eligibility. Drafts do not count toward completed KPI.
+
+Use serialized writes, atomic file replacement, and recovery/reconciliation across JSON files. Implement idempotent rebuilding of VIP meeting references from authoritative meetings to prevent permanent inconsistency after partial failures.
+
+8. MEETING FREQUENCY AND KPI LOGIC
+
+VIPs have Meeting Frequency and Meeting Period:
+- QUARTER: 4 periods/year
+- HALF_YEAR: 2 periods/year
+- YEAR: 1 period/year
+
+Annual target = Frequency × Periods per Year.
+Examples: 1/QUARTER => 4/year; 2/HALF_YEAR => 4/year; 1/YEAR => 1/year.
+
+Each required meeting is a KPI slot. Assign eligible completed meetings to the period containing their meeting date. Count each meeting at most once per VIP. Cap counted meetings at that period's target; excess meetings must not transfer to another period.
+
+Example: H1 target=2, actual H1 meetings=3 => completed H1 KPI slots=2; the third meeting does not count for H2.
+
+Slot colors:
+- Green: completed
+- Red: overdue
+- Gray: not yet due
+- Yellow: in progress where aggregate UI supports it
+
+Compute status from period deadlines and the selected as-of date; do not mark future slots overdue.
+Annual KPI % = completed required slots / annual required slots × 100, capped at 100%.
+YTD KPI % uses required slots with deadlines elapsed as of the selected date, including early completed slots. Distinguish Annual, YTD, Overdue and Not Yet Due.
+
+On meeting edit, date change, delete or restore, recalculate affected periods.
+
+KPI by PIC aggregates by responsible PIC from vips.json: PIC, VIP Count, Total KPI Slots, Completed, Overdue, Not Yet Due, Annual KPI Achievement. Derive from actual records; no hardcoded dashboard metrics.
+
+9. BACKEND API
+
+Inspect existing routes first and reuse naming conventions. Conceptual routes (do not duplicate existing equivalents):
+GET    /api/government-meetings
+GET    /api/government-meetings/:id
+POST   /api/government-meetings
+PUT    /api/government-meetings/:id
+DELETE /api/government-meetings/:id
+POST   /api/government-meetings/drafts
+POST   /api/government-meetings/match-vips
+POST   /api/government-meetings/:id/attachments
+GET    /api/government-meetings/:id/attachments/:attachmentId
+DELETE /api/government-meetings/:id/attachments/:attachmentId
+
+Validate inputs and permissions, derive created_by/updated_by from authentication, use structured errors, existing JSON storage, concurrency protection, upload error handling, and audit logging.
+
+10. SAVE DRAFT VS CREATE MEETING
+
+Save Draft:
+- Minimal validation necessary to persist draft
+- is_draft=true, draft_saved_at populated
+- Preserve all entered fields and staged attachments
+- Exclude draft from completed KPI
+- Reopen/edit later
+
+Create Meeting:
+- Validate required fields
+- Confirm VIP associations
+- Persist meeting and attachments
+- Synchronize VIP references
+- Recalculate KPIs
+- Write audit record
+- Show success message and navigate to Meeting List/Details
+- Reuse existing status vocabulary
+
+11. FRONTEND INTERACTION
+
+Controlled inputs, inline validation, loading states, disable duplicate submissions, unsaved-change warning, success/error toasts, upload progress, VIP preview, responsive behavior, keyboard accessibility, labels, draft restoration, and edit mode. Avoid browser alerts and unnecessary dependencies.
+
+12. MEETING LIST AND HISTORY REPORT INTEGRATION
+
+Created meetings appear in Meeting List and History Report. Confirmed VIPs receive meeting references. Engagement KPI, KPI by PIC and Dashboard refresh. Drafts are excluded from completed engagement counts.
+
+Filters: Year, Date Range, Meeting Type, Activity Category, VIP, PIC, Status.
+One meeting counts once for meeting-level statistics, but may contribute to each distinct confirmed VIP's KPI. Prevent duplicate counting.
+
+13. MIGRATION AND BACKWARD COMPATIBILITY
+
+Preserve migration_batch_id, migration_provenance_id, original attendee text, IDs, dates, attachments, status and draft information. Legacy records may lack new fields. Do not auto-rewrite historical records or mass-match historical attendees on startup. Provide a separate reviewable backfill/reconciliation process with backup and explicit execution.
+
+14. TESTING
+
+Test:
+1. Create new meeting
+2. Save draft
+3. Restore draft
+4. Edit meeting
+5. Unique ID generation
+6. Multiple uploads
+7. Invalid upload rejection
+8. Exact VIP match
+9. Accent-insensitive match
+10. Fuzzy match
+11. Ambiguous names
+12. Duplicate VIP prevention
+13. Add VIP meeting references
+14. Remove obsolete associations
+15. QUARTER KPI
+16. HALF_YEAR KPI
+17. YEAR KPI
+18. Overdue slots
+19. Future slots
+20. Excess meetings per period
+21. Multiple VIPs per meeting
+22. KPI by PIC
+23. Concurrent JSON writes
+24. Partial save recovery
+25. Migrated record compatibility
+26. Unauthorized file access
+27. Draft KPI exclusion
+28. Meeting date moved across periods
+
+Use existing test framework.
+
+15. IMPLEMENTATION WORKFLOW
+
+Phase 1: Inspect repository, frontend, backend, JSON, storage, VIP schema, KPI, reusable code.
+Phase 2: Extend types/validation with backward compatibility, attachments, VIP references.
+Phase 3: Implement meeting CRUD, drafts, uploads, VIP matching/sync, KPI recalculation.
+Phase 4: Redesign page and wire all form interactions.
+Phase 5: Integrate Meeting List, History Report, VIP history, KPI by PIC, Dashboard.
+Phase 6: Run tests/build, fix errors, validate legacy data.
+
+16. FINAL ACCEPTANCE CRITERIA
+
+- Page matches SEHC design and preserves shared header/sidebar.
+- Create/edit/draft workflows function.
+- government_meetings.json persists meetings and retains legacy records.
+- Uploads stored under data/uploads; JSON stores safe relative paths.
+- External attendee names matched to VIPs with manual review for ambiguity.
+- Confirmed VIP meeting references synchronized without duplicates.
+- Engagement KPI and KPI by PIC recalculate accurately.
+- Historical migrated records remain compatible.
+- Concurrent writes cannot corrupt JSON.
+- Tests and build pass.
+
+EXECUTION INSTRUCTIONS
+
+Implement directly in the existing codebase, not a demo. Do not replace architecture, overwrite production data, or claim unverified completion. Inspect and identify compatibility risks before modifying files.
+
+After implementation, report:
+1. Files created/modified
+2. JSON schema changes
+3. APIs added/modified
+4. VIP matching logic
+5. KPI integration logic
+6. Tests and results
+7. Remaining limitations
+
+ARCHITECTURE NOTES
+
+Keep government_meetings.json authoritative; vips.json stores references/derived data. A meeting with three VIPs is still one meeting record. Do not auto-correct ambiguous identities. Centralize JSON persistence in packages/db to allow later migration to SQLite/PostgreSQL without rewriting UI/business logic.
