@@ -1,0 +1,221 @@
+# IMPLEMENTATION PROMPT — EXTERNAL AFFAIRS INTEGRATED PLANNING DASHBOARD
+
+You are a senior full-stack engineer and UI designer. Implement a production-ready External Affairs Integrated Planning Dashboard in the existing GRIP / SEHC project. Use the attached/latest approved UI reference image as the visual target. Do not create a disconnected demo or replace the existing app architecture.
+
+## 1. Inspect existing project first
+Existing monorepo approximately:
+- apps/web: React + TypeScript + Vite frontend
+- apps/api: Node.js + TypeScript backend
+- packages/shared, packages/schemas, packages/db, packages/config
+- data/vips.json, data/government_meetings.json, data/uploads, data/_sequences.json
+
+Inspect package.json, routes, existing layout/header/sidebar, shared components, data schemas, meeting CRUD, VIP matching, and KPI calculations. Adapt implementation to actual code. Reuse existing APIs, types, auth, CSS tokens and utilities. Do not overwrite or migrate existing data destructively. Do not hardcode KPI figures or names shown in reference screenshot.
+
+## 2. Layout and visual fidelity
+Create the External Affairs Integrated Planning Dashboard under the existing Gov Organization menu (or existing appropriate route). Keep the shared SEHC header and sidebar, including their current branding and navigation behavior. Main page should have a pale blue/white atmospheric background, high-quality rounded translucent panels, and a responsive desktop-first layout matching the reference.
+
+Main page structure:
+A. Breadcrumb: Home > Gov Organization > External Affairs Integrated Planning
+B. Heading: External Affairs Integrated Planning Dashboard
+   Subtitle: Overview of agency engagement, stakeholder coverage and meeting performance
+C. Top-right: Planning Year selector, Export Records to CSV button. Do NOT show Reset Records.
+D. Tabs: Agency KPI (functional), Annual Plan, Monthly Plan, Weekly Execution, Contact Records. For the latter four, show a polished empty-state content panel marked 'Coming soon'; do not invent business logic or records.
+E. Four KPI summary cards:
+   1. Agencies / Stakeholders: display exactly 'agencyCount / stakeholderCount', e.g. '9 / 25', not '9 - 25 people'.
+   2. Annual Contact Target: sum of planned annual contacts for included stakeholders, unit 'contacts'.
+   3. Historical Average KPI: show a clearly defined historical KPI; do not silently relabel current KPI as historical. If historical data is insufficient, show N/A with tooltip. See calculation rules.
+   4. Agencies Meeting Status: display three values RED, YELLOW, GREEN with distinct colors and labels: Red < 50%, Yellow >= 50% and < 70%, Green >= 70%. Counts must sum to agencyCount. Do not retain title 'Green / Red Agencies'.
+F. Agency Performance Overview: cards for each agency/department derived from VIP data. Each card includes department name, circular KPI gauge, stakeholder count and View Details. Selecting a card highlights it and updates the detail panel without reloading the whole page. Sort agency names consistently; provide empty/loading states.
+G. Agency Detail panel: selected agency name, aggregate KPI, number of stakeholders, annual planned contacts, completed contacts, overall status, and two tabs:
+   - Stakeholders (N): detailed table of VIPs in the selected agency.
+   - Meeting History (N): meetings associated with these VIPs for selected year, deduplicated by meeting ID.
+   Stakeholders table: VIP name, title/position, meeting frequency and period, annual target, completed, completion rate, status, last meeting date, action to inspect meeting details. Allow navigating to existing meeting pages if supported. No fake rows.
+
+## 3. Year selection and data sources
+Planning Year defaults to current local year, unless existing application preference exists. Changing year must refresh ALL year-dependent numbers, gauges, detail tables, history and CSV export. Read meetings from existing data/government_meetings.json, filter by meeting.date year (not created_at). If application already stores separate per-year files, use its actual convention and filter accordingly. DO NOT assume year-specific files exist; do not create or rename them unless necessary and agreed. VIP roster comes from data/vips.json, with year-relevant activity/active dates when available. Document behavior for VIPs added or removed midyear.
+
+Provide GET endpoints compatible with existing API routing, conceptually:
+GET /api/external-affairs/agency-kpi?year=2026
+GET /api/external-affairs/agencies/:agencyId?year=2026
+GET /api/external-affairs/agencies/:agencyId/meetings?year=2026
+GET /api/external-affairs/export?year=2026
+Names can be adapted to existing conventions. Validate year, permissions, and pagination. Do aggregation on backend; UI consumes typed API results. Avoid frontend reading server JSON directly.
+
+## 4. Meeting matching and source of truth
+Inspect current meeting schema fields, such as id, meeting_display_id, date, type, activity_category, place, hosted, purpose, attendees, networking, main_content, attachments, status, is_draft. Inspect VIP fields and existing meeting linkage. Prefer existing explicit VIP IDs / meeting IDs over name matching.
+
+For historical meetings without links, split external attendee strings carefully (commas, semicolons, line breaks, list markers; do not blindly split periods inside abbreviations or names). Normalize Unicode (Vietnamese and Korean), whitespace, honorifics, case, and punctuation while preserving display names. Match to VIPs with exact normalized names first, then fuzzy candidates with agency/title context. Never silently auto-link ambiguous matches. Store or surface unresolved matches for manual review, and do not count them as confirmed KPI. Prevent double counting the same meeting for the same VIP. Avoid counting company/internal attendees as external VIPs. Do not mutate vips.json during a read-only dashboard request.
+
+If existing architecture keeps meeting IDs in vips.json, maintain backward compatibility; treat meetings as the canonical source for meeting facts, and linked VIP IDs as canonical relations. Changes to meeting records should update linked relations transactionally / through safe atomic file writes and not duplicate meeting content across JSON files.
+
+Only count qualifying completed/held meetings. Exclude drafts, cancelled, deleted and future planned meetings. Verify exact existing status semantics before coding. If migrated records have incomplete status, define and document conservative behavior rather than assuming all are completed.
+
+## 5. KPI formulas (implement consistently)
+VIP annual target = meeting_frequency * periods_per_year, with QUARTER=4, HALF_YEAR=2, YEAR=1. Example: frequency=2 and HALF_YEAR => annual target=4. Preserve any existing frequency/period aliases via normalization; do not silently reinterpret values.
+
+Agency annual target = sum of annual targets of eligible VIPs in agency.
+Agency completed = sum over VIPs of min(qualifying actual meetings for that VIP in the selected year, that VIP annual target), unless existing approved business logic specifies a different cap. Agency annual KPI (%) = 100 * agency completed / agency annual target. Do not allow extra meetings for one VIP to hide unmet targets of other VIPs. If annual target=0, show N/A and keep such agencies in a separate 'No target' state rather than incorrectly categorizing them as red.
+
+Agency status based on annual KPI: RED <50%; YELLOW 50% to <70%; GREEN >=70%. Display the three counts and separately show N/A count if applicable, so totals reconcile. If business insists exactly three counts, flag this case for product decision; do not misclassify zero-target agencies.
+
+Stakeholder completion rate = min(actual meetings, annual target)/annual target * 100. Show raw actual meeting count separately where helpful. For the historical average KPI, prefer a historical baseline stored in existing data if one exists. Otherwise calculate an explicitly labeled historical average over prior complete years with available data and disclose years used. If no valid historical baseline exists, display N/A; never use 61% from screenshot as a hardcoded value.
+
+Meeting cadence/slot status (if used in detail views) must respect period boundaries: QUARTER => 4 periods; HALF_YEAR => 2; YEAR => 1. Allocate meeting occurrences to their actual periods; surplus in one period must not automatically satisfy another period. Past incomplete slots are overdue; current period can be in progress; future slots not yet due. Ensure annual aggregate and period-based display are explicitly differentiated and consistent with the approved KPI definitions. For YTD KPI, use only periods elapsed/current as specified by the existing History Report business logic, not full-year denominator without labeling.
+
+## 6. Agency detail and meeting history
+Click agency card => set selectedAgencyId, visually outline card in luminous blue, update Agency Detail. Show stakeholder count as a plain count (e.g. 3 Stakeholders), not a misleading fraction unless the denominator is clearly defined. Stakeholders table should show real VIPs in that agency and their real meeting metrics. Meeting History tab should show date, meeting ID, type, host, place, linked VIPs, summary, status and attachment indicator. Each meeting appears once per agency even if multiple VIPs attended; stakeholder contact counts can legitimately count one meeting for each participating VIP. Support navigation to existing meeting detail, with safe handling for missing records.
+
+CSV export must reflect the selected year and real underlying data, with correct UTF-8 BOM if needed for Vietnamese Excel, proper CSV quoting and protection against spreadsheet formula injection. Respect access permissions.
+
+## 7. Exact CSS art direction — important
+Build the visual treatment with CSS gradients, subtle layered highlights and shadows; do not screenshot the reference or bake data/text into a background image. Reuse existing approved brand assets for header/sidebar. Do not put giant decorative elements behind dense tables. Prefer restrained polished enterprise glassmorphism, not excessive neon.
+
+Design tokens (adjust only to match existing theme):
+:root {
+  --ea-navy: #082e75;
+  --ea-blue: #086df3;
+  --ea-cyan: #27c7ff;
+  --ea-bg: #edf6ff;
+  --ea-border: rgba(108, 170, 238, .26);
+  --ea-shadow: 0 10px 28px rgba(19, 83, 160, .10), 0 2px 8px rgba(26, 86, 150, .05);
+  --ea-radius: 16px;
+}
+
+Page background:
+.ea-page {
+  background:
+    radial-gradient(ellipse 56% 28% at 82% 4%, rgba(58,169,255,.16), transparent 75%),
+    radial-gradient(ellipse 38% 50% at 2% 74%, rgba(63,148,255,.12), transparent 76%),
+    linear-gradient(135deg, #f6fbff 0%, #edf6ff 46%, #e8f3ff 100%);
+  color: var(--ea-navy);
+  min-height: 100%;
+}
+
+Standard section panel:
+.ea-panel {
+  position: relative;
+  background: linear-gradient(145deg, rgba(255,255,255,.95), rgba(246,251,255,.88));
+  border: 1px solid rgba(255,255,255,.85);
+  border-radius: 18px;
+  box-shadow: var(--ea-shadow), inset 0 1px 0 rgba(255,255,255,.9);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+KPI summary card base:
+.ea-kpi-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 116px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.9);
+  background: linear-gradient(125deg, rgba(255,255,255,.96), rgba(242,249,255,.90));
+  box-shadow: 0 9px 22px rgba(17,86,164,.10), inset 0 1px 0 #fff;
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+.ea-kpi-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 98% 100%, var(--accent-glow, rgba(0,120,255,.14)), transparent 57%);
+  pointer-events: none;
+}
+.ea-kpi-card::after {
+  content: '';
+  position: absolute;
+  right: -24px;
+  bottom: -40px;
+  width: 140px;
+  height: 100px;
+  border: 1px solid rgba(95,185,255,.16);
+  border-radius: 50%;
+  transform: rotate(-24deg);
+  pointer-events: none;
+}
+.ea-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 32px rgba(20,94,181,.17), 0 0 0 1px rgba(71,169,255,.14);
+}
+.ea-kpi-card--blue { --accent-glow: rgba(28,144,255,.22); }
+.ea-kpi-card--purple { --accent-glow: rgba(149,98,255,.18); }
+.ea-kpi-card--amber { --accent-glow: rgba(255,181,48,.19); }
+.ea-kpi-card--mint { --accent-glow: rgba(27,205,164,.17); }
+
+Icon tile:
+.ea-icon-tile {
+  width: 52px; height: 52px; display: grid; place-items: center;
+  border-radius: 15px;
+  color: #086df3;
+  background: radial-gradient(circle at 25% 15%, rgba(255,255,255,.95), transparent 62%), linear-gradient(135deg,#d6efff,#b7d9ff);
+  box-shadow: inset 0 1px 2px #fff, 0 5px 12px rgba(17,106,218,.12);
+}
+
+Agency cards:
+.ea-agency-card {
+  background: linear-gradient(145deg, rgba(255,255,255,.97), rgba(239,248,255,.94));
+  border: 1px solid rgba(135,189,245,.30);
+  border-radius: 15px;
+  box-shadow: 0 6px 18px rgba(28,91,169,.075), inset 0 1px 0 #fff;
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+  cursor: pointer;
+}
+.ea-agency-card:hover { transform: translateY(-3px); border-color: #56b7ff; box-shadow: 0 12px 26px rgba(19,108,208,.16); }
+.ea-agency-card[aria-selected='true'] {
+  border: 2px solid #087aff;
+  box-shadow: 0 0 0 3px rgba(0,146,255,.09), 0 10px 25px rgba(12,115,239,.17), inset 0 1px 0 #fff;
+}
+
+Pill/tab active state:
+.ea-tab--active {
+  color: #fff;
+  background: linear-gradient(110deg,#0a79f8 0%,#1aa8f8 100%);
+  box-shadow: 0 6px 14px rgba(7,114,242,.23), inset 0 1px 0 rgba(255,255,255,.25);
+  border-radius: 9px;
+}
+
+Tables:
+.ea-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.ea-table thead th { background: linear-gradient(180deg,#e6f3ff,#d9eafa); color: #123d80; font-weight: 700; padding: 12px 14px; text-align: left; }
+.ea-table tbody td { padding: 11px 14px; border-bottom: 1px solid #e4eef9; background: rgba(255,255,255,.60); }
+.ea-table tbody tr:hover td { background: rgba(220,239,255,.65); }
+
+Status: green #009f77; yellow #e99c08; red #ec3656. Use accessible soft tinted pills and progress tracks. Gauge can be CSS conic-gradient or SVG; value and color must be data-driven. 0% should show empty ring; 100% full ring. Avoid misleading gauge animation on data changes. Support prefers-reduced-motion.
+
+Typography: modern system/Inter-like sans-serif, deep navy headings, clear labels, numbers 26–32px on KPI cards, 13–14px table text. Main content spacing 16–22px; cards 14–18px internal padding. Avoid tiny unreadable text. Maintain reasonable contrast. Desktop agency grid 4 columns at ~1440px, 2 columns on tablet, 1 column mobile. Summary cards 4 columns desktop, 2 tablet, 1 mobile. Use horizontal scroll for wide tables on mobile rather than squeezing columns.
+
+Optional subtle decorative wave: add only to top page background via CSS pseudo-element using gradients; do not interfere with clicks or legibility. Existing government dome / globe asset may be reused in shared sidebar ONLY if already present. Do not generate unrelated stock imagery.
+
+## 8. UX behavior
+- Year change: loading/skeleton states, request cancellation or stale response protection, preserve selected agency if it still exists.
+- Tabs: accessible keyboard navigation and active states.
+- Agency cards: clickable and keyboard accessible; selected state persists while switching detail tabs.
+- Tooltips explain KPI denominator, thresholds and historical years.
+- Empty state for no meetings, no VIPs, or missing historical data.
+- Error state with retry for malformed JSON or API errors; no silent fallback to screenshot numbers.
+- No reset button.
+- Export uses selected year.
+- Do not introduce fake 3D perspective that reduces table readability.
+
+## 9. JSON reliability and compatibility
+Do not alter original field meanings or delete existing records. Define TypeScript interfaces / validation schemas based on actual JSON. Preserve Vietnamese/Korean Unicode and source text. Use safe atomic writes (temporary file + rename), concurrency protection for mutations, and backups/migrations if schema changes are unavoidable. If data volumes become large, structure services so JSON repository can later be replaced by a database. Keep agency grouping deterministic; normalize department aliases via explicit mapping, not arbitrary fuzzy department merging. Existing audit logs and authentication must remain functional.
+
+## 10. Testing and delivery
+Add unit tests for:
+- QUARTER/HALF_YEAR/YEAR annual targets;
+- Year boundary and selected year filtering;
+- Status thresholds: 49.9 red, 50 yellow, 69.9 yellow, 70 green;
+- One meeting with two VIP attendees;
+- Duplicate meeting ID and duplicate attendee name;
+- Draft/cancelled/future meetings exclusion;
+- Ambiguous VIP name matching;
+- VIPs with no annual target;
+- Over-target meetings capped per VIP;
+- Zero meetings / missing history;
+- CSV encoding/escaping;
+- Invalid JSON and year parameter.
+
+Run existing lint, typecheck, tests and build. Do not claim success unless commands actually pass. Report exact files changed, API routes added, KPI formulas, any migration, unresolved data ambiguities, and screenshots or local preview if possible.
+
+IMPLEMENT NOW, rather than only giving a plan. First inspect the repository, then apply incremental changes while preserving existing features and design. If business definitions conflict with existing code, surface the discrepancy and use a clearly documented conservative choice instead of inventing data.
