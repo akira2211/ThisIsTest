@@ -1,0 +1,392 @@
+TASK: Update VIP Engagement KPI — Effective Date Exclusion Rules
+
+1. Objective
+
+Update the existing VIP Engagement KPI calculation to support effective-date-based KPI slot exclusion.
+
+Currently, the system generates a fixed number of KPI circles for the entire year based on "meeting_frequency" and "meeting_period".
+
+New requirement: KPI circles must be generated only for eligible periods, considering each VIP's "active_date".
+
+Excluded KPI circles must be completely removed from the UI and all KPI calculations.
+
+Do not redesign the existing UI or rewrite unrelated functionality.
+
+2. Existing Project
+
+The project uses:
+
+- React + TypeScript + Vite frontend
+- Node.js + TypeScript backend
+- JSON-based storage
+- "data/vips.json"
+- "data/government_meetings.json"
+
+Before implementation, inspect the existing source code, JSON schemas, KPI calculation functions, and frontend components.
+
+Reuse the current architecture and existing functions wherever possible.
+
+3. Existing VIP Data Structure
+
+Example:
+
+{
+  "vip_id": "VIP-202608-00007",
+  "name": "Trần Lưu Quang",
+  "department": "HCMC Party Committee",
+  "meeting_frequency": 1,
+  "meeting_period": "YEAR",
+  "kpi_policies": [
+    {
+      "effective_year": 2026,
+      "meeting_frequency": 1,
+      "meeting_period": "YEAR"
+    }
+  ],
+  "active_date": "2026-01-01",
+  "status": "active",
+  "meetings": [
+    {
+      "meeting_id": 531,
+      "date": "2026-05-18",
+      "status": "completed"
+    }
+  ]
+}
+
+Do not change existing JSON field names.
+
+Use the applicable "kpi_policies" entry for the selected KPI year, following existing policy-selection behavior.
+
+Preserve historical policy compatibility.
+
+4. KPI Period Definitions
+
+Support the following periods:
+
+Meeting Period| Periods per Year
+MONTH| 12
+QUARTER| 4
+HALF_YEAR| 2
+YEAR| 1
+
+Each period normally contains "meeting_frequency" KPI slots.
+
+Example:
+
+- Frequency = 2
+- Period = QUARTER
+- Original annual slots = 8
+
+The new calculation must evaluate the eligibility of each period individually.
+
+5. Effective Date Exclusion Rules
+
+Use "active_date" to determine when the VIP becomes eligible for KPI calculation.
+
+Evaluate the selected KPI year independently.
+
+MONTH
+
+- VIP active for the entire month: generate all configured slots.
+- VIP active for only part of the month: generate 0 slots.
+- VIP not yet active: generate 0 slots.
+
+QUARTER
+
+- VIP active for the entire quarter: generate all configured slots.
+- VIP active for only part of the quarter: generate 0 slots.
+- VIP not yet active: generate 0 slots.
+
+HALF_YEAR
+
+- VIP active for the entire half-year: generate all configured slots.
+- VIP active for part of the half-year:
+  - If active days / total period days > 60%, generate at most 1 slot.
+  - Otherwise, generate 0 slots.
+- VIP not yet active: generate 0 slots.
+
+YEAR
+
+- VIP active for the entire year: generate all configured slots.
+- VIP active for part of the year:
+  - If active days / total year days > 60%, generate at most 1 slot.
+  - Otherwise, generate 0 slots.
+- VIP not yet active: generate 0 slots.
+
+Important:
+
+- The threshold is strictly greater than 60%, not greater than or equal to 60%.
+- Count calendar days inclusively.
+- Correctly handle leap years.
+- Compare dates using calendar dates, not local-time timestamps that could cause timezone errors.
+- Respect any existing eligibility exclusions and historical activation/deactivation rules.
+- Do not use "created_at" as the effective date when a valid "active_date" is available.
+
+6. KPI Circle Generation
+
+Previously:
+
+"TotalSlots = MeetingFrequency × PeriodsPerYear"
+
+New logic:
+
+"TotalSlots = Sum(EligibleSlotsForEachPeriod)"
+
+Example:
+
+KPI Year: 2026
+Meeting Frequency: 2
+Meeting Period: QUARTER
+Active Date: 2026-05-15
+
+Q1: 0 slots (excluded)
+Q2: 0 slots (excluded)
+Q3: 2 slots
+Q4: 2 slots
+
+Total Valid Slots: 4
+
+Only render the four valid circles.
+
+Do not render excluded circles as gray, disabled, transparent, or placeholders.
+
+The number of visible circles must exactly equal the number of valid KPI slots.
+
+KPI Circle Status
+
+Maintain existing color behavior:
+
+- Green: completed slot.
+- Red: incomplete slot in a closed period.
+- Gray: incomplete slot in an open or future period.
+
+If the existing UI supports an in-progress yellow state, preserve it without changing the eligibility rules.
+
+7. Meeting Allocation
+
+Allocate completed meetings to the period containing their meeting date.
+
+Rules:
+
+1. Count only valid completed meetings according to existing meeting-status logic.
+2. Match meetings to the correct VIP using existing meeting associations.
+3. A meeting must belong to the selected KPI year and an eligible period.
+4. Completed meetings cannot exceed the number of valid slots in that period.
+5. Extra meetings in one period must not complete slots in another period.
+6. Prevent duplicate meeting records from being counted twice.
+7. Do not count draft, canceled, deleted, or otherwise ineligible meetings.
+
+Example:
+
+Frequency: 2
+Period: HALF_YEAR
+
+H1 eligible slots: 1
+H1 completed meetings: 3
+
+H1 completed KPI slots: 1
+
+H2 eligible slots: 2
+H2 completed meetings: 0
+
+Total completed KPI slots: 1
+Total valid KPI slots: 3
+Annual KPI: 33.33%
+
+8. Annual KPI Calculation
+
+Use:
+
+"Annual KPI % = CompletedValidSlots / TotalValidAnnualSlots × 100"
+
+Example:
+
+Original annual slots: 8
+Excluded slots: 4
+Valid annual slots: 4
+Completed valid slots: 3
+
+Annual KPI = 75%
+
+If total valid annual slots equals zero, return "N/A".
+
+Do not return 0% when the denominator is zero.
+
+9. YTD KPI Calculation
+
+Use:
+
+"YTD KPI % = CompletedSlotsInClosedPeriods / ValidSlotsInClosedPeriods × 100"
+
+Important:
+
+- Consider only eligible KPI slots belonging to closed periods.
+- Do not include open or future periods in the YTD denominator.
+- If no eligible period has closed, return "N/A".
+- YTD = 100% does not necessarily mean annual KPI = 100%.
+
+Example:
+
+Frequency: 1
+Period: HALF_YEAR
+
+H1 completed: 1
+H2 still open: 0
+
+Annual KPI: 50%
+YTD KPI: 100%
+
+Use the selected reporting date or existing as-of date, not an unrelated server timestamp.
+
+10. Update All Dependent KPI Aggregations
+
+The new eligible-slot calculation must be reused consistently across:
+
+- History Report → Engagement KPI table
+- History Report → KPI by PIC
+- Dashboard → Engagement KPI summary
+- Agency KPI → Agency Performance Overview
+- Agency Detail → Stakeholder KPI
+- Any existing KPI charts, counters, exports, or summary APIs
+
+The following values must reflect the new logic:
+
+- Total KPI Slots
+- Completed
+- Overdue
+- Not Yet Due
+- Annual KPI %
+- YTD KPI %
+
+For aggregate KPI percentages, use:
+
+"Sum(CompletedValidSlots) / Sum(TotalValidSlots) × 100"
+
+Do not calculate aggregate KPI by averaging individual VIP percentages.
+
+For aggregate YTD, use the total completed closed-period slots divided by total eligible closed-period slots.
+
+Avoid duplicating calculation logic in different pages.
+
+11. Backend Design
+
+Create or update a shared KPI calculation function, following existing project conventions.
+
+Suggested interface:
+
+calculateVipKpi(
+  vip: Vip,
+  year: number,
+  asOfDate: string
+): VipKpiResult
+
+Suggested result:
+
+interface VipKpiResult {
+  totalValidSlots: number;
+  completedSlots: number;
+  overdueSlots: number;
+  notYetDueSlots: number;
+  annualKpiPercent: number | null;
+  ytdKpiPercent: number | null;
+  periods: Array<{
+    periodKey: string;
+    startDate: string;
+    endDate: string;
+    eligibleSlots: number;
+    completedSlots: number;
+    excluded: boolean;
+    slots: Array<{
+      status: "completed" | "overdue" | "not_yet_due";
+    }>;
+  }>;
+}
+
+Adapt this interface to the existing codebase instead of introducing incompatible types.
+
+Ensure:
+
+"completedSlots + overdueSlots + notYetDueSlots = totalValidSlots"
+
+Do not create unnecessary database fields to store calculated circles.
+
+Generate KPI results dynamically from existing JSON data.
+
+12. Frontend Requirements
+
+Preserve the existing visual design of History Report.
+
+Update only KPI-dependent rendering.
+
+Requirements:
+
+- Render exactly the valid number of KPI circles.
+- Completely hide excluded circles.
+- Keep circle numbering consistent.
+- Update annual and YTD percentage indicators.
+- Update KPI summary cards.
+- Update PIC and Agency KPI aggregations.
+- Show "N/A" when no valid denominator exists.
+- Ensure changing KPI Year recalculates the results.
+- Preserve existing filters, sorting, pagination, hover effects, and export behavior.
+
+Do not hardcode KPI values in React components.
+
+13. Test Cases
+
+Implement automated tests for at least these scenarios:
+
+Case| Configuration| Expected
+1| 1/YEAR, active Jan 1| 1 slot
+2| 2/QUARTER, active Jan 1| 8 slots
+3| 2/QUARTER, active May 15| 4 slots
+4| 1/MONTH, active May 15| 7 slots
+5| 2/HALF_YEAR, active Feb 1| 3 slots
+6| 2/HALF_YEAR, active May 15| 2 slots
+7| 2/HALF_YEAR, active Jul 1| 2 slots
+8| Partial YEAR, active duration >60%| Maximum 1 slot
+9| Partial YEAR, active duration <=60%| 0 slots
+10| No valid slots| Annual/YTD N/A
+11| Extra meetings in one period| No carryover
+12| No closed eligible periods| YTD N/A
+
+Also test:
+
+- Leap year calculations.
+- Activation on a period boundary.
+- Activation exactly at the 60% threshold.
+- Different KPI policies across years.
+- Duplicate meetings.
+- KPI aggregation across multiple VIPs.
+- A VIP whose active date is later than the selected KPI year.
+
+14. Implementation Constraints
+
+- Inspect the existing implementation before editing.
+- Reuse the current project architecture.
+- Preserve "vips.json" and "government_meetings.json".
+- Do not delete or reset existing records.
+- Do not migrate to SQL.
+- Do not modify unrelated pages.
+- Do not change existing authentication or permissions.
+- Do not introduce hardcoded KPI values.
+- Keep historical reports reproducible.
+- Prefer one shared KPI calculation module.
+- Preserve existing API contracts where possible.
+
+15. Deliverables
+
+1. Updated shared KPI calculation logic.
+2. Updated History Report KPI rendering.
+3. Updated Dashboard KPI aggregations.
+4. Updated Agency KPI calculations.
+5. Automated unit tests.
+6. Summary of changed files and functions.
+7. Verification results comparing old and new slot counts.
+
+Before coding, identify the existing KPI functions and dependent components. Then implement the changes and run relevant tests.
+
+Final acceptance criterion:
+
+For every VIP and selected KPI year, the number of KPI circles displayed must equal the number of eligible slots after effective-date exclusions. All KPI percentages, summary counters, PIC aggregations, and Agency aggregations must be derived from those same eligible slots.
