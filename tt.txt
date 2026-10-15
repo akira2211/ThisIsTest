@@ -1,167 +1,551 @@
-Task: Update Monthly Plan UI and Interaction Logic
+SEHC Email Engine — Phase 1: Core Architecture & Report Registry
 
-You are working on the existing AI Government Relations Intelligence Platform project.
+You are working on the existing SEHC AI Government Relations Intelligence Platform.
 
-Update the Monthly Plan tab in the External Affairs Integrated Planning Dashboard.
+Objective
 
-1. Month Labels
+Build the foundation of a reusable, centralized Email Engine that supports multiple report types, HTML templates, scheduled execution, and a pluggable email delivery provider.
 
-In the "Annual Monthly Allocation" section, replace the current month labels:
+This phase must NOT send real emails.
 
-- 1 Month → Jan
-- 2 Month → Feb
-- 3 Month → Mar
-- 4 Month → Apr
-- 5 Month → May
-- 6 Month → Jun
-- 7 Month → Jul
-- 8 Month → Aug
-- 9 Month → Sep
-- 10 Month → Oct
-- 11 Month → Nov
-- 12 Month → Dec
+Requirements
 
-Use three-letter English abbreviations.
+1. Inspect the current repository, including:
+   
+   - Automated Reports page
+   - Schedules, Recipient Groups, Delivery History tabs
+   - Existing Node.js backend and API conventions
+   - Existing JSON persistence and shared schemas
+   - Existing History Report KPI/business calculation services
 
-Keep the original numeric month values (1–12) internally for calculations, JSON storage, and filtering.
+2. Implement an Email Engine module with:
+   
+   - EmailEngine
+   - ReportRegistry
+   - ReportDefinition
+   - ReportDataProvider interface
+   - HtmlTemplateRenderer interface
+   - EmailDeliveryAdapter interface
+   - ReportExecutionContext
+   - ReportExecutionResult
 
-2. Default Month Selection
+3. Support multiple report types through registration, without modifying the core engine when a new report is added.
 
-When the Monthly Plan tab is opened:
+4. Each ReportDefinition must identify:
+   
+   - report_type
+   - display_name
+   - description
+   - template_id
+   - data_provider
+   - enabled
+   - version
 
-- Automatically select the current calendar month.
-- Highlight the corresponding month card.
-- Display the selected month's data in the summary KPI cards and stakeholder table.
-- Use the year selected in the global Planning Year selector.
-- If the selected year differs from the current year, still default to the current calendar month.
+5. Implement a generic execution pipeline:
+   
+   Schedule/Manual Request
+   → Validate Report Type
+   → Load Report Definition
+   → Prepare Execution Context
+   → Load Data
+   → Render HTML
+   → Resolve Recipients
+   → Delivery Adapter
+   → Execution Result
 
-Example:
+6. Separate report generation from email delivery so the same report can be previewed without sending.
 
-Current date: October 2026
+7. Integrate with existing report schedules using stable report_type identifiers.
 
-Default selected month: Oct
+8. Define strict TypeScript types and runtime validation.
 
-Table title: "Oct 2026 Monthly Stakeholder Contact Plan"
+9. Preserve the existing application architecture. Do not introduce unnecessary dependencies or a separate deployment.
 
-3. Month Selection Interaction
+10. Implement unit tests using mock data providers and mock delivery adapters.
 
-When the user clicks any month card:
+Important Constraints
 
-1. Update the selected month.
-2. Apply the active highlight to that card.
-3. Remove the active highlight from the previously selected card.
-4. Refresh the four summary KPI cards:
-   - Monthly Planned Contacts
-   - Planned Contacts Completed
-   - Monthly Plan Completion
-   - Total Contacts This Month
-5. Refresh the stakeholder contact table using the selected month and planning year.
-6. Update the table title dynamically.
+- Do not implement real SMTP or Agent Builder API calls.
+- Do not implement the scheduler yet.
+- Do not duplicate existing KPI calculation logic.
+- Do not modify unrelated VIP or meeting business logic.
+- Do not introduce LangGraph for deterministic email processing.
+- Do not use hardcoded recipient addresses.
 
-All changes must happen immediately without reloading the page.
+Deliverables
 
-4. Status Persistence
+Implement the foundation directly in the repository. Provide modified files, architecture summary, public interfaces, test results, and integration points for Phase 2.
 
-Meeting/contact status must be calculated from actual stored records, not from the currently selected month.
+Do not stop at a design proposal.
 
-Rules:
+SEHC Email Engine — Phase 2: HTML Templates & VIP Engagement Reminder
 
-- Completed records remain Completed when switching months.
-- Planned records remain Planned until their completion conditions are satisfied.
-- Historical completed meetings must never become Planned again simply because another month is selected.
-- Do not reset or overwrite any meeting records when switching months.
-- Reopening a previously selected month must display the same persisted results.
+Continue from the completed Phase 1 implementation.
 
-Calculate each month's completion based on the planned contacts and valid completed meeting records associated with that month.
+Objective
 
-Avoid double-counting duplicate meeting records.
+Implement a reusable HTML email template system and the first production report:
 
-5. Month Card Design
+VIP Engagement & Take-Care Reminder
 
-Preserve the existing blue, white, and glassmorphism design language.
+The generated HTML must visually match the existing SEHC History Report design and the provided VIP Engagement Reminder reference.
 
-Each month card should display:
+1. Shared Email Design System
 
-Month abbreviation
+Inspect the existing History Report CSS and UI components.
 
-Number of planned people
+Create email-compatible shared design tokens for:
 
-Example:
+- Brand colors
+- Section headers
+- Typography
+- Tables
+- Borders
+- Backgrounds
+- Status colors
+- KPI summary cards
+- Footer
 
-Oct
-8 people
+The HTML must be compatible with Outlook and Gmail.
 
-Visual requirements:
+Use:
 
-- Rounded corners: 12px.
-- Soft blue/white gradient background.
-- Subtle border and shadow.
-- Hover: slightly brighter blue background and smooth elevation.
-- Selected: blue border, light cyan glow, stronger shadow.
-- Smooth transitions: 200–250ms.
-- All 12 month cards should be aligned with consistent width and height.
-- Responsive layout with wrapping on smaller screens.
+- Table-based email layouts
+- Inline CSS
+- Email-safe fonts
+- Explicit widths and padding
+- Escaped dynamic content
+- Responsive behavior where supported
 
-Example CSS:
+Do not copy unsupported React/browser CSS directly into email templates.
 
-.month-card {
-  border: 1px solid #d6e6fa;
-  border-radius: 12px;
-  background: linear-gradient(
-    145deg,
-    rgba(255,255,255,0.96),
-    rgba(232,244,255,0.88)
-  );
-  box-shadow: 0 3px 12px rgba(28,92,170,0.06);
-  transition: all 0.22s ease;
-  cursor: pointer;
-}
+2. Reusable HTML Components
 
-.month-card:hover {
-  transform: translateY(-2px);
-  background: linear-gradient(
-    145deg,
-    #ffffff,
-    #dceeff
-  );
-  box-shadow: 0 6px 18px rgba(30,120,230,0.16);
-}
+Implement:
 
-.month-card.active {
-  border: 2px solid #1685ff;
-  background: linear-gradient(
-    135deg,
-    #e5f5ff,
-    #cbe7ff
-  );
-  box-shadow:
-    0 0 0 3px rgba(22,133,255,0.08),
-    0 5px 18px rgba(22,133,255,0.20);
-}
+- EmailHeader
+- EmailFooter
+- SummaryCard
+- SummaryCardRow
+- SectionHeader
+- DataTable
+- StatusBadge
+- EmptyState
+- ReportMetadata
 
-6. Data and Backend Integration
+Components must be reusable across different report types.
 
-- Reuse the existing project APIs, JSON data files, and calculation functions.
-- Do not create a new database.
-- Do not change existing JSON field names unnecessarily.
-- Preserve the existing meeting-to-VIP relationships.
-- Recalculate monthly KPI values when valid meeting records are created, updated, or deleted.
-- Ensure the selected Planning Year and selected Month are applied consistently.
-- Do not use hardcoded sample KPI values.
+3. VIP Engagement & Take-Care Reminder
 
-7. Implementation Requirements
+Build the report using real VIP and meeting data.
 
-1. Inspect the existing Monthly Plan components and data flow before modifying anything.
-2. Reuse the existing design system and UI components.
-3. Implement all month selection and status logic.
-4. Keep other dashboard tabs unchanged.
-5. Do not modify unrelated backend logic.
-6. Maintain compatibility with existing historical data.
-7. Add or update tests for month selection, year changes, completion persistence, and KPI calculation.
-8. Verify that the project builds successfully.
+Required sections:
 
-Expected Result
+Header
 
-The Monthly Plan page must display Jan–Dec cards, automatically highlight the current month, update all KPI cards and the stakeholder table when another month is selected, and preserve historical completion status accurately.
+VIP Engagement & Take-Care Reminder
 
-Implement the changes directly in the existing codebase. Do not stop at a design proposal. After implementation, summarize the modified files and test results.
+Executive Summary
+
+Five summary cards:
+
+- Total VIPs
+- Not Yet Met
+- Overdue
+- Due Soon
+- On Track
+
+Detailed Sections
+
+1. Not Yet Met
+2. Immediate Attention / Overdue
+3. Due Soon
+4. On Track
+
+Each section must support a dynamic table with appropriate columns.
+
+Typical columns:
+
+- VIP Name
+- Organization
+- Grade
+- SEHC Greeting Level
+- Minimum Meeting Frequency
+- Last Meeting
+- Next Due
+- Days Overdue / Days Remaining
+- Status
+
+The exact columns can differ by section.
+
+4. Data Provider
+
+Implement a dedicated VIP Reminder Data Provider.
+
+It must:
+
+- Read data through existing business services.
+- Reuse established meeting and VIP calculation logic where applicable.
+- Respect VIP activation dates and existing policy rules.
+- Determine due dates using the business rules already defined in the project.
+- Use an explicit report as-of date and timezone.
+- Avoid duplicate meeting counting.
+- Return structured JSON.
+
+Do not ask an LLM to calculate KPI values or meeting due dates.
+
+If the existing History Report uses different definitions for KPI periods and rolling next-meeting deadlines, keep those concepts separate and document the distinction. Do not silently substitute one calculation for the other.
+
+5. HTML Renderer
+
+Implement a generic function equivalent to:
+
+renderReport(reportType, reportData): string
+
+Output must be a complete HTML email document.
+
+Do not include JavaScript, React hydration or external CSS dependencies.
+
+6. Preview Integration
+
+Connect the existing Automated Reports "Preview Email" button to the real report renderer.
+
+The preview must use the same HTML generation pipeline as real email delivery.
+
+Use a sandboxed iframe or an equivalent safe HTML preview mechanism.
+
+Provide a report as-of date and display the report type and template version.
+
+Do not send any email during preview.
+
+7. Testing
+
+Test:
+
+- Empty VIP data
+- Missing optional VIP fields
+- Long VIP names
+- Vietnamese Unicode
+- HTML escaping
+- Different meeting statuses
+- Date calculations
+- Dynamic summary counts
+- Table rendering
+- Template rendering failures
+- Outlook/Gmail-compatible markup structure
+
+Deliverables
+
+Implement the template engine, VIP Reminder Data Provider, HTML template and working UI preview.
+
+Run tests and build.
+
+Do not implement real email sending or automatic scheduling in this phase.
+
+SEHC Email Engine — Phase 3: Agent Builder Email API Integration
+
+Continue from Phases 1 and 2.
+
+Objective
+
+Integrate the existing Agent Builder API as an email delivery adapter.
+
+Existing API Request Pattern
+
+const url =
+  `${CONFIG.BASE_URL}/api/v1/run/${CONFIG.API_ENDPOINT}?stream=false`;
+
+const payload = {
+  input_type: "chat",
+  output_type: "chat",
+  input_value: CONFIG.INPUT_VALUE
+};
+
+const response = await fetch(url, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-api-key": CONFIG.API_KEY
+  },
+  body: JSON.stringify(payload)
+});
+
+Requirements
+
+1. Implement AgentBuilderEmailAdapter behind the existing EmailDeliveryAdapter interface.
+
+2. Configure:
+   
+   - Base URL
+   - API endpoint
+   - API key
+   - Request timeout
+   - Retry policy
+
+3. Store credentials in server-side environment variables.
+
+4. Support sending:
+   
+   - Email subject
+   - HTML body
+   - Recipient email addresses
+   - Execution ID / correlation ID
+
+5. IMPORTANT: Inspect or confirm the actual Agent Builder workflow contract before implementing payload mapping.
+   
+   Do not assume that input_value alone supports structured recipient, subject and HTML body fields.
+
+6. Ensure the Agent Builder workflow sends HTML as the email HTML body, not as plain text.
+
+7. Implement response parsing and error handling.
+
+8. Distinguish:
+   
+   - Request accepted
+   - Email send confirmed
+   - Delivery confirmed, if supported
+   - Failed
+   - Unknown outcome
+
+9. HTTP 200 alone must not be treated as proof of inbox delivery.
+
+10. Support timeout handling, safe retry behavior and duplicate-send prevention.
+
+11. Redact API keys and sensitive email content from application logs.
+
+12. Implement integration tests using mocked API responses.
+
+13. Provide a controlled manual test path using an explicitly configured test recipient.
+
+Constraints
+
+- Do not hardcode API keys.
+- Do not expose credentials to React.
+- Do not send emails to production recipient groups during tests.
+- Do not change HTML rendering logic from Phase 2.
+- Do not implement automatic scheduling yet.
+
+Deliverables
+
+Working Agent Builder Email Adapter, configuration documentation, error handling, integration tests and verified HTML email sending where a test endpoint is available.
+
+If the actual workflow payload contract is unavailable, implement the adapter interface and mock tests, then clearly identify the missing contract rather than inventing fields.
+
+SEHC Email Engine — Phase 4: Scheduler & Delivery History
+
+Continue from Phases 1–3.
+
+Objective
+
+Enable automatic execution of configured report schedules using the existing Automated Reports management UI.
+
+1. Scheduler
+
+Support:
+
+- Daily
+- Weekly
+- Monthly
+- Timezone-aware execution
+- Enable/disable schedules
+- Last execution
+- Next execution
+- Manual Send Now
+
+Use Asia/Ho_Chi_Minh as the default timezone.
+
+Implement durable execution tracking.
+
+Prevent duplicate executions when the service restarts or multiple workers are running.
+
+Use an execution key based on schedule ID and scheduled occurrence.
+
+2. Recipient Resolver
+
+At execution time:
+
+1. Load recipient_group_ids from the schedule.
+2. Fetch current recipient groups.
+3. Exclude inactive groups and members.
+4. Validate email addresses.
+5. Deduplicate recipients by normalized email.
+6. Return the final recipient list.
+
+Do not store duplicated recipient email lists inside schedules.
+
+If no valid recipients exist, mark the execution as failed or skipped with an explicit reason.
+
+3. Execution Flow
+
+Scheduler
+→ Create Execution
+→ Load Report Definition
+→ Collect Report Data
+→ Render HTML
+→ Resolve Recipients
+→ Send via Agent Builder Adapter
+→ Record Results
+
+4. Delivery History
+
+Persist:
+
+- execution_id
+- schedule_id
+- report_type
+- template_version
+- trigger_type
+- scheduled_at
+- started_at
+- completed_at
+- status
+- recipient count
+- success count
+- failure count
+- provider response metadata
+- error details
+
+Use the existing Delivery History tab.
+
+Support real filtering, searching and execution details.
+
+Do not create fake successful deliveries.
+
+5. Failure Handling
+
+Implement:
+
+- Configurable timeout
+- Bounded retry
+- Retry backoff
+- Safe duplicate prevention
+- Execution logging
+- Error classification
+- Manual retry where safe
+
+Do not automatically retry an uncertain send outcome unless provider idempotency or delivery reconciliation makes it safe.
+
+6. UI Integration
+
+Update:
+
+- Active schedule status
+- Last run
+- Next run
+- Send Now
+- Delivery History
+- Reports Sent KPI
+- Delivery Success Rate KPI
+
+Ensure the UI displays actual backend data.
+
+7. Tests
+
+Test:
+
+- Daily/weekly/monthly triggers
+- Restart recovery
+- Duplicate execution prevention
+- Inactive schedules
+- Recipient deduplication
+- Empty recipient groups
+- Provider failures
+- Timeout behavior
+- Manual Send Now
+- Delivery History persistence
+
+Deliverables
+
+A working scheduler, recipient resolver, execution manager and integrated Delivery History.
+
+Run available tests and build successfully.
+
+SEHC Email Engine — Phase 5: End-to-End Integration & Extensibility
+
+Continue from Phases 1–4.
+
+Objective
+
+Complete the Automated Reports module and prepare the Email Engine for additional HTML report types and future LangGraph integration.
+
+Requirements
+
+1. Verify the complete end-to-end workflow:
+   
+   Report Schedule
+   → Scheduler
+   → Report Registry
+   → Data Provider
+   → HTML Renderer
+   → Recipient Resolver
+   → Email API
+   → Delivery History
+
+2. Ensure the three Automated Reports tabs are fully integrated:
+   
+   - Schedules
+   - Recipient Groups
+   - Delivery History
+
+3. Ensure consistent SEHC UI styling across all tabs.
+
+4. Verify that Preview Email and actual email delivery use the same HTML renderer.
+
+5. Implement a central report type registry used by the UI and backend.
+
+6. Report types without implemented data providers/templates must not be selectable for active sending.
+
+7. Make it possible to register new report types without modifying Email Engine Core.
+
+8. Define integration interfaces for future LangGraph agents that may generate optional AI summaries or recommendations.
+
+9. Keep deterministic calculations outside the LLM.
+
+10. Implement structured execution logs and operational health checks.
+
+11. Verify authorization for report management, recipient data and sending.
+
+12. Test with the existing VIP Engagement & Take-Care Reminder report.
+
+13. Verify Vietnamese characters, tables, summary cards and email styling.
+
+14. Test HTML output in available email clients or document any client rendering that could not be verified.
+
+15. Run the full test suite, type checks and production build.
+
+Additional Report Types
+
+Prepare registration points for:
+
+- VIP KPI Performance Report
+- Monthly Executive Summary
+- Media Event Report
+- Personnel Change Report
+
+Do not invent business rules for these reports.
+
+If their actual data providers or templates have not been implemented, keep them disabled or marked as unavailable.
+
+Deliverables
+
+Provide:
+
+- Final architecture
+- Complete file changes
+- API contracts
+- Report registry
+- Template registry
+- Execution flow
+- Deployment/configuration guide
+- Test results
+- Known limitations
+- Future LangGraph integration points
+
+Do not rewrite unrelated application modules.
+
+====
+5 End-to-end hoạt động, thêm report type mới không phải sửa Core
+5. Hai điểm cần đặc biệt chú ý
+Thứ nhất — API hiện tại. Bạn đã có Agent Builder API gọi bằng input_value. Nhưng để triển khai Phase 3 chính xác, cần xác định workflow đó nhận subject, recipient list và HTML body như thế nào. Nếu workflow chỉ nhận một chuỗi, chúng ta có thể cần quy định một JSON envelope trong input_value, đồng thời cập nhật workflow để parse nó.
+Thứ hai — Template HTML. Không nên cho mỗi schedule sở hữu một bản HTML riêng. Schedule chỉ tham chiếu report_type; Report Registry xác định template và data provider. Một template có thể phục vụ nhiều schedule khác nhau, mỗi schedule có lịch gửi và recipient groups riêng.
+Tôi khuyên bắt đầu Phase 1 và Phase 2 trước. Sau hai phase đó, bạn sẽ có nền tảng Email Engine và một HTML report hoàn chỉnh, xem được bằng nút Preview Email mà chưa cần kích hoạt việc gửi mail thực tế.
