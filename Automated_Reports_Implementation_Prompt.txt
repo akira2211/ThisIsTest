@@ -1,0 +1,118 @@
+# IMPLEMENTATION TASK: Automated Reports Management
+## SEHC — AI Government Relations Intelligence Platform
+
+OBJECTIVE
+Implement a complete Automated Reports management page under the existing History Report module, containing three integrated tabs: Schedules, Recipient Groups, and Delivery History. Build a functional UI and configuration backend, not a static mockup. Do not implement LangGraph agents or actual email delivery yet.
+
+1. INSPECT EXISTING PROJECT
+Inspect the React/TypeScript frontend, Node.js/TypeScript backend, routing, History Report, New Government Meeting form, shared components, API conventions, schemas and JSON persistence. Existing structure includes apps/web, apps/api, packages/shared, packages/schemas, packages/db, data/vips.json and data/government_meetings.json. Reuse current conventions and dependencies.
+
+2. NAVIGATION
+History Report
+  - Meeting Performance (existing History Report, unchanged)
+  - Automated Reports (new)
+Automated Reports contains internal horizontal tabs: Schedules, Recipient Groups, Delivery History. Breadcrumb: Home > History Report > Automated Reports. Title: Automated Reports. Subtitle: Schedule and distribute VIP meeting reports automatically. Support direct navigation to tabs.
+
+3. VISUAL CONSISTENCY
+Match the existing SEHC dark-blue government-themed top header, globe/building imagery, light-blue sidebar, blue/cyan active highlights, white/light-blue glass-style cards, gradients, typography, forms, tables, icons, badges and shadows. Do not introduce an unrelated template or replace the application shell. Ensure consistent spacing, responsive layout, empty/loading/error states across tabs.
+
+4. SHARED SUMMARY CARDS
+Show Active Schedules, Recipient Groups, Delivery Success Rate and Reports Sent This Month. Calculate from persisted data. Show 0 or N/A where appropriate, never fabricate success rates or trends. Keep cards visible and consistent across tabs.
+
+5. TAB: SCHEDULES
+Two-column layout. Left: searchable/filterable schedule list with name, type, active badge, recurrence, send time, group count, unique active recipient count, enable toggle, edit/duplicate/delete actions. Highlight selected item. Confirm deletion.
+Right: Create/Edit Schedule form with Schedule Name (required, max 150), Report Type (central registry), Frequency (Daily/Weekly/Monthly), conditional Day of Week or Day of Month, Send Time, Timezone (default Asia/Ho_Chi_Minh), Enabled toggle, recipient group multi-select. Report types initially: VIP Meeting Status Report, VIP KPI Performance Report, Monthly Executive Summary, Media Event Report, Personnel Change Report. Support monthly Last Day and different month lengths.
+Recipient selector searches existing groups, shows 'RG-001 — GR Management (5 recipients)', uses removable chips, supports multiple groups and shows deduplicated unique active recipient count. Do not require typing raw IDs. Persist stable recipient_group_ids rather than copied emails.
+Actions: Cancel, Preview Email, Save Schedule, Send Now. Save validates fields and active groups/recipients, persists and refreshes. Preview uses explicitly labeled placeholder content and never sends. Disable Send Now until a real generator and delivery service are configured; never fake success. Distinguish enabled status from execution status. Calculate next run respecting timezone.
+
+6. TAB: RECIPIENT GROUPS
+Use same two-column design. Left: searchable group list, status filter, New Group, cards showing group ID, name, description, active member count, status and edit/delete. Right: editor with generated stable Group ID (read-only), unique Group Name (required), Description, Active/Inactive status and editable Members table.
+Members fields: stable Recipient ID, Name, Email, Department, Active/Inactive status, actions. Support add/edit/remove/search. Validate emails, reject duplicates within group. Editing must preserve IDs. Show total/active/inactive member counts and referencing schedules. Inactive groups cannot be newly selected; inactive members are excluded from deliveries. Prevent hard deletion of referenced groups; offer deactivation. Renaming a group must not break schedule references. Changes to membership must affect future recipient resolution automatically.
+
+7. TAB: DELIVERY HISTORY
+Use shared card/table design. Filters: search, report type, schedule, status, date range, refresh. Table columns: Execution ID, Report Name, Trigger (Scheduled/Manual), Execution Time, Recipients, Status, Actions. Statuses: Queued, Running, Sent, Partially Failed, Failed, Cancelled. View Details modal/drawer: execution/schedule IDs, report type, trigger, start/end timestamps, recipient groups, resolved recipient count, success/failure counts, errors, report preview if available and per-recipient results if provided. Never show secrets. If no real executions exist, show 'No report deliveries yet' and explanation. Never seed fake production delivery records.
+
+8. DATA MODELS AND JSON STORAGE
+Follow current JSON persistence conventions. Suggested files: data/report_schedules.json, data/recipient_groups.json, data/report_delivery_history.json. Share TypeScript interfaces and validation schemas.
+
+Recipient Group example (schema only; do not seed):
+{
+  "group_id": "RG-001",
+  "name": "GR Management",
+  "description": "Management reporting group",
+  "status": "active",
+  "members": [{"recipient_id":"REC-001","name":"Example User","email":"user@example.com","department":"Government Relations","status":"active"}],
+  "created_at": "2026-10-15T08:00:00Z",
+  "updated_at": "2026-10-15T08:00:00Z"
+}
+
+Schedule example (schema only; do not seed):
+{
+  "schedule_id": "SCH-001",
+  "schedule_name": "VIP Meeting Status Report",
+  "report_type": "vip_meeting_status",
+  "frequency": "weekly",
+  "day_of_week": "monday",
+  "day_of_month": null,
+  "send_time": "08:00",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "recipient_group_ids": ["RG-001","RG-002"],
+  "enabled": true,
+  "created_at": "2026-10-15T08:00:00Z",
+  "updated_at": "2026-10-15T08:00:00Z"
+}
+
+Delivery example (schema only; do not seed):
+{
+  "execution_id": "EXE-001",
+  "schedule_id": "SCH-001",
+  "report_type": "vip_meeting_status",
+  "trigger_type": "scheduled",
+  "status": "sent",
+  "started_at": "2026-10-15T01:00:00Z",
+  "completed_at": "2026-10-15T01:00:05Z",
+  "recipient_group_ids": ["RG-001"],
+  "recipient_count": 5,
+  "success_count": 5,
+  "failure_count": 0,
+  "error": null
+}
+
+Persist timestamps in UTC, display in selected timezone. Use atomic file replacement, safe concurrent-write handling, collision-resistant identifiers and backend validation.
+
+9. BACKEND APIS
+Reuse existing route conventions and equivalent endpoints when available.
+GET/POST /api/report-schedules
+GET/PUT/DELETE /api/report-schedules/:id
+GET/POST /api/recipient-groups
+GET/PUT/DELETE /api/recipient-groups/:id
+GET /api/report-deliveries
+GET /api/report-deliveries/:id
+GET /api/report-types
+GET /api/automated-reports/summary
+Use consistent authentication, error handling, response formats and validation.
+
+10. FUTURE AGENT INTEGRATION
+Keep clean boundaries for Report Scheduler -> Meeting Report Agent -> Report Generator -> Recipient Resolver -> Email Delivery Service -> Delivery History. Implement configuration management, recipient resolution and delivery history read models now, not the LangGraph workflow, SMTP or actual sending. Never couple React to a specific LLM/email provider.
+
+11. COMPONENT STRUCTURE
+AutomatedReportsPage
+  AutomatedReportsHeader
+  ReportSummaryCards
+  AutomatedReportsTabs
+  SchedulesTab: ScheduleList, ScheduleEditor, RecipientGroupSelector
+  RecipientGroupsTab: RecipientGroupList, RecipientGroupEditor, RecipientMembersTable
+  DeliveryHistoryTab: DeliveryFilters, DeliveryTable, DeliveryDetails
+Reuse existing UI primitives wherever possible.
+
+12. UX RULES
+Tab switching without full reload. Functional search/filter/CRUD. Confirm destructive actions. Loading/empty/success/error states. Disable invalid Save. Warn on unsaved changes. Show group selections clearly. Prevent schedules with zero valid active recipients. Update counts after membership changes. Preserve stable references. Accessible labels and keyboard-friendly controls.
+
+13. TESTS
+Verify navigation, tab switching, schedule CRUD, recurrence rules including monthly last day, group/member CRUD, duplicate-email validation, rename preserving references, inactive group/member handling, deduplication across groups, prevention of referenced-group deletion, delivery filters and empty state, summary KPI calculation, persistence across restarts, and no regressions in existing History Report/Meeting pages. Run type checks, tests and production build.
+
+14. BOUNDARIES
+Do not redesign SEHC header/sidebar, modify existing VIP KPI logic or meeting/VIP data, implement LangGraph or real email sending, create fake delivery history, introduce a new database, rewrite unrelated components or replace routing/styling framework.
+
+15. DELIVERABLES
+Implement directly in repository. Summarize changed files, endpoints, models, navigation, test/build results and future integration points. Final acceptance: History Report > Automated Reports includes three visually consistent, functional tabs with persisted schedule/group management, stable ID relationships and real delivery history when available. Do not stop at a proposal; inspect and implement.
