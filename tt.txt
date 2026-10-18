@@ -1,551 +1,402 @@
-SEHC Email Engine — Phase 1: Core Architecture & Report Registry
+Task: Redesign VIP Engagement & Take-Care Reminder HTML Email
 
-You are working on the existing SEHC AI Government Relations Intelligence Platform.
+1. Objective
 
-Objective
+Redesign the existing VIP Engagement & Take-Care Reminder HTML email to closely match the visual design of the current SEHC Engagement KPI React dashboard.
 
-Build the foundation of a reusable, centralized Email Engine that supports multiple report types, HTML templates, scheduled execution, and a pluggable email delivery provider.
+The email must look like a modern enterprise dashboard rather than a plain HTML report.
 
-This phase must NOT send real emails.
+Key architectural requirement:
 
-Requirements
+The HTML structure and CSS must be implemented as a reusable, fixed template. KPI calculations, VIP classification, and report data preparation must remain separate from the presentation layer.
 
-1. Inspect the current repository, including:
-   
-   - Automated Reports page
-   - Schedules, Recipient Groups, Delivery History tabs
-   - Existing Node.js backend and API conventions
-   - Existing JSON persistence and shared schemas
-   - Existing History Report KPI/business calculation services
+Do not generate a new HTML layout for every email execution. Only inject calculated data into the existing template.
 
-2. Implement an Email Engine module with:
-   
-   - EmailEngine
-   - ReportRegistry
-   - ReportDefinition
-   - ReportDataProvider interface
-   - HtmlTemplateRenderer interface
-   - EmailDeliveryAdapter interface
-   - ReportExecutionContext
-   - ReportExecutionResult
+2. Inspect Existing Implementation First
 
-3. Support multiple report types through registration, without modifying the core engine when a new report is added.
+Before making changes, inspect:
 
-4. Each ReportDefinition must identify:
-   
-   - report_type
-   - display_name
-   - description
-   - template_id
-   - data_provider
-   - enabled
-   - version
+- Existing React Engagement KPI dashboard components and their CSS/design tokens.
+- Existing "vip_engagement_reminder" report definition and HTML renderer.
+- Current report data preparation and VIP classification logic.
+- Shared Email Engine template infrastructure.
+- HTML preview and delivery execution paths.
 
-5. Implement a generic execution pipeline:
-   
-   Schedule/Manual Request
-   → Validate Report Type
-   → Load Report Definition
-   → Prepare Execution Context
-   → Load Data
-   → Render HTML
-   → Resolve Recipients
-   → Delivery Adapter
-   → Execution Result
+Reuse the current architecture wherever possible.
 
-6. Separate report generation from email delivery so the same report can be previewed without sending.
+Do not rewrite Email Engine, Scheduler, recipient groups, delivery history, or Agent Builder integration.
 
-7. Integrate with existing report schedules using stable report_type identifiers.
+3. Visual Design Requirements
 
-8. Define strict TypeScript types and runtime validation.
+Create a professional dashboard-style email with:
 
-9. Preserve the existing application architecture. Do not introduce unnecessary dependencies or a separate deployment.
+- Maximum content width: 800px.
+- White background with subtle light-gray sections.
+- Samsung-inspired blue as the primary accent.
+- Compact enterprise typography.
+- Consistent table spacing and thin borders.
+- Color-coded KPI cards and section headers.
+- Grade badges (A/B/C) matching the React UI.
+- Colored status badges for overdue, due soon, and on track.
+- Clearly separated sections with comfortable spacing.
 
-10. Implement unit tests using mock data providers and mock delivery adapters.
+Use inline CSS and table-based layout for email compatibility.
 
-Important Constraints
+Avoid dependencies on JavaScript, external stylesheets, CSS Grid, Flexbox, or unsupported browser-only features.
 
-- Do not implement real SMTP or Agent Builder API calls.
-- Do not implement the scheduler yet.
-- Do not duplicate existing KPI calculation logic.
-- Do not modify unrelated VIP or meeting business logic.
-- Do not introduce LangGraph for deterministic email processing.
-- Do not use hardcoded recipient addresses.
+Suggested Design Tokens
 
-Deliverables
+Use the React UI's actual design tokens when available. The following are fallback values:
 
-Implement the foundation directly in the repository. Provide modified files, architecture summary, public interfaces, test results, and integration points for Phase 2.
+/* Reference values; convert to inline styles */
+--primary: #2563eb;
+--navy: #142c57;
+--background: #f5f7fb;
+--surface: #ffffff;
+--header-bg: #edf2f8;
+--border: #dce4ee;
+--text-primary: #172b4d;
+--text-secondary: #64748b;
 
-Do not stop at a design proposal.
+--success: #079455;
+--success-bg: #e8f7ef;
 
-SEHC Email Engine — Phase 2: HTML Templates & VIP Engagement Reminder
+--warning: #f59e0b;
+--warning-bg: #fff5dc;
 
-Continue from the completed Phase 1 implementation.
+--danger: #dc3545;
+--danger-bg: #fdecee;
 
-Objective
+--info: #3178f6;
+--info-bg: #eaf2ff;
 
-Implement a reusable HTML email template system and the first production report:
+4. Email Layout
 
-VIP Engagement & Take-Care Reminder
+A. Main Header
 
-The generated HTML must visually match the existing SEHC History Report design and the provided VIP Engagement Reminder reference.
+Create a dark-blue header containing:
 
-1. Shared Email Design System
+- SEHC EXTERNAL AFFAIRS
+- VIP Engagement & Take-Care Reminder
+- Report date
+- Active VIP count
 
-Inspect the existing History Report CSS and UI components.
+Suggested HTML:
 
-Create email-compatible shared design tokens for:
+<table width="100%" cellpadding="0" cellspacing="0"
+       style="border-collapse:collapse;background:#142c57;">
+  <tr>
+    <td style="padding:26px 28px;color:#ffffff;
+               font-family:Arial,sans-serif;">
+      <div style="font-size:12px;letter-spacing:1px;
+                  color:#cbdaf5;">
+        SEHC EXTERNAL AFFAIRS
+      </div>
 
-- Brand colors
-- Section headers
-- Typography
-- Tables
-- Borders
-- Backgrounds
-- Status colors
-- KPI summary cards
-- Footer
+      <div style="font-size:23px;font-weight:700;
+                  margin-top:8px;line-height:1.3;">
+        VIP Engagement &amp; Take-Care Reminder
+      </div>
 
-The HTML must be compatible with Outlook and Gmail.
+      <div style="font-size:13px;color:#dbeafe;
+                  margin-top:8px;">
+        As of {{reportDate}} · {{summary.totalVips}} active VIPs
+      </div>
+    </td>
+  </tr>
+</table>
 
-Use:
+B. Report Metadata
 
-- Table-based email layouts
-- Inline CSS
-- Email-safe fonts
-- Explicit widths and padding
-- Escaped dynamic content
-- Responsive behavior where supported
+Display report date, report type, generated time, schedule name, and version in a compact two-column table.
 
-Do not copy unsupported React/browser CSS directly into email templates.
+Use light-gray backgrounds and small, readable typography.
 
-2. Reusable HTML Components
+C. KPI Summary Cards
 
-Implement:
+Display five KPI cards:
 
-- EmailHeader
-- EmailFooter
-- SummaryCard
-- SummaryCardRow
-- SectionHeader
-- DataTable
-- StatusBadge
-- EmptyState
-- ReportMetadata
+1. Total VIPs — Blue
+2. Not Yet Met — Neutral
+3. Immediate Attention — Red
+4. Due Soon — Orange
+5. On Track — Green
 
-Components must be reusable across different report types.
+Each card must show a large numeric value and a small uppercase label.
 
-3. VIP Engagement & Take-Care Reminder
+Example KPI card:
 
-Build the report using real VIP and meeting data.
+<table width="100%" cellpadding="0" cellspacing="0"
+       style="border-collapse:collapse;
+              background:#eaf2ff;
+              border:1px solid #c9ddff;
+              border-top:4px solid #3178f6;">
+  <tr>
+    <td align="center" style="padding:16px 8px;">
+      <div style="font-family:Arial,sans-serif;
+                  font-size:27px;font-weight:bold;
+                  color:#2563eb;">
+        {{summary.totalVips}}
+      </div>
+      <div style="font-family:Arial,sans-serif;
+                  font-size:11px;color:#64748b;
+                  padding-top:5px;">
+        TOTAL VIPS
+      </div>
+    </td>
+  </tr>
+</table>
 
-Required sections:
+Arrange all five cards in a single row at desktop width, using nested HTML tables.
 
-Header
+Use graceful fallback behavior for narrower email clients.
 
-VIP Engagement & Take-Care Reminder
+5. Four Report Sections
 
-Executive Summary
+Replace the existing detailed VIP table with four separate sections.
 
-Five summary cards:
+Section 1: Not Yet Met (X)
+
+Theme: Blue / neutral.
+
+Columns:
+
+VIP Name| Organization| Grade| SEHC Greeting Level| Min Frequency
 
-- Total VIPs
-- Not Yet Met
-- Overdue
-- Due Soon
-- On Track
+Section 2: Immediate Attention (Y)
+
+Theme: Red.
+
+Columns:
+
+VIP Name| Organization| Grade| Min Frequency| Last Meeting| Next Due| Days Overdue
+
+Section 3: Due Soon (Z)
+
+Theme: Orange.
+
+Columns:
+
+VIP Name| Organization| Grade| Min Frequency| Last Meeting| Next Due| Days Remaining
+
+Section 4: On Track (U)
+
+Theme: Green.
+
+Columns:
+
+VIP Name| Organization| Grade| Last Meeting| Next Due| Status
+
+Do not display PIC information anywhere in the detailed tables, including secondary text beneath VIP names.
+
+Use existing classification rules and avoid introducing new KPI calculations.
+
+If section definitions overlap under current business rules, preserve the existing classification semantics and clarify the expected grouping before changing them.
+
+Example Section Header
 
-Detailed Sections
-
-1. Not Yet Met
-2. Immediate Attention / Overdue
-3. Due Soon
-4. On Track
-
-Each section must support a dynamic table with appropriate columns.
-
-Typical columns:
-
-- VIP Name
-- Organization
-- Grade
-- SEHC Greeting Level
-- Minimum Meeting Frequency
-- Last Meeting
-- Next Due
-- Days Overdue / Days Remaining
-- Status
-
-The exact columns can differ by section.
-
-4. Data Provider
-
-Implement a dedicated VIP Reminder Data Provider.
-
-It must:
-
-- Read data through existing business services.
-- Reuse established meeting and VIP calculation logic where applicable.
-- Respect VIP activation dates and existing policy rules.
-- Determine due dates using the business rules already defined in the project.
-- Use an explicit report as-of date and timezone.
-- Avoid duplicate meeting counting.
-- Return structured JSON.
-
-Do not ask an LLM to calculate KPI values or meeting due dates.
-
-If the existing History Report uses different definitions for KPI periods and rolling next-meeting deadlines, keep those concepts separate and document the distinction. Do not silently substitute one calculation for the other.
-
-5. HTML Renderer
-
-Implement a generic function equivalent to:
-
-renderReport(reportType, reportData): string
-
-Output must be a complete HTML email document.
-
-Do not include JavaScript, React hydration or external CSS dependencies.
-
-6. Preview Integration
-
-Connect the existing Automated Reports "Preview Email" button to the real report renderer.
-
-The preview must use the same HTML generation pipeline as real email delivery.
-
-Use a sandboxed iframe or an equivalent safe HTML preview mechanism.
-
-Provide a report as-of date and display the report type and template version.
-
-Do not send any email during preview.
-
-7. Testing
-
-Test:
-
-- Empty VIP data
-- Missing optional VIP fields
-- Long VIP names
-- Vietnamese Unicode
-- HTML escaping
-- Different meeting statuses
-- Date calculations
-- Dynamic summary counts
-- Table rendering
-- Template rendering failures
-- Outlook/Gmail-compatible markup structure
-
-Deliverables
-
-Implement the template engine, VIP Reminder Data Provider, HTML template and working UI preview.
-
-Run tests and build.
-
-Do not implement real email sending or automatic scheduling in this phase.
-
-SEHC Email Engine — Phase 3: Agent Builder Email API Integration
-
-Continue from Phases 1 and 2.
-
-Objective
-
-Integrate the existing Agent Builder API as an email delivery adapter.
-
-Existing API Request Pattern
-
-const url =
-  `${CONFIG.BASE_URL}/api/v1/run/${CONFIG.API_ENDPOINT}?stream=false`;
-
-const payload = {
-  input_type: "chat",
-  output_type: "chat",
-  input_value: CONFIG.INPUT_VALUE
-};
-
-const response = await fetch(url, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "x-api-key": CONFIG.API_KEY
+<table width="100%" cellpadding="0" cellspacing="0"
+       style="border-collapse:collapse;
+              background:#fdecee;
+              border-left:5px solid #dc3545;">
+  <tr>
+    <td style="padding:13px 16px;
+               font-family:Arial,sans-serif;
+               font-size:16px;font-weight:bold;
+               color:#172b4d;">
+      Immediate Attention
+      <span style="color:#dc3545;">
+        ({{summary.immediateAttention}})
+      </span>
+    </td>
+  </tr>
+</table>
+
+Example Table Styling
+
+<table width="100%" cellpadding="0" cellspacing="0"
+       style="border-collapse:collapse;
+              font-family:Arial,sans-serif;
+              table-layout:fixed;">
+  <thead>
+    <tr style="background:#edf2f8;">
+      <th align="left"
+          style="padding:11px 10px;
+                 border:1px solid #dce4ee;
+                 font-size:11px;
+                 color:#334155;">
+        VIP Name
+      </th>
+      <th align="left"
+          style="padding:11px 10px;
+                 border:1px solid #dce4ee;
+                 font-size:11px;
+                 color:#334155;">
+        Organization
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    {{{sectionRows}}}
+  </tbody>
+</table>
+
+Extend the table with the appropriate columns for each section.
+
+Example Data Row
+
+<tr style="background:#ffffff;">
+  <td style="padding:11px 10px;
+             border-bottom:1px solid #e2e8f0;
+             font-size:12px;font-weight:600;
+             color:#172b4d;">
+    {{vipName}}
+  </td>
+  <td style="padding:11px 10px;
+             border-bottom:1px solid #e2e8f0;
+             font-size:12px;color:#475569;">
+    {{organization}}
+  </td>
+</tr>
+
+Grade Badge Example
+
+<span style="display:inline-block;
+             background:#dbeafe;
+             color:#2563eb;
+             border:1px solid #bfdbfe;
+             padding:3px 8px;
+             border-radius:5px;
+             font-size:11px;
+             font-weight:bold;">
+  A
+</span>
+
+Map badge colors to actual React UI grade colors.
+
+Status Badge Example
+
+<span style="display:inline-block;
+             background:#e8f7ef;
+             color:#079455;
+             padding:4px 9px;
+             border-radius:6px;
+             font-size:11px;
+             font-weight:600;">
+  On Track
+</span>
+
+Do not depend on border radius being supported by every email client.
+
+6. Fixed Template + Dynamic Data Architecture
+
+Separate the implementation into three logical layers:
+
+Layer 1 — Data Preparation
+
+Reuse the existing report business logic to calculate KPI results and prepare a structured report model.
+
+Example:
+
+{
+  "reportDate": "2026-10-18",
+  "summary": {
+    "totalVips": 23,
+    "notYetMet": 12,
+    "immediateAttention": 3,
+    "dueSoon": 0,
+    "onTrack": 8
   },
-  body: JSON.stringify(payload)
-});
+  "sections": {
+    "notYetMet": [],
+    "immediateAttention": [],
+    "dueSoon": [],
+    "onTrack": []
+  }
+}
 
-Requirements
+The example values are illustrative only.
 
-1. Implement AgentBuilderEmailAdapter behind the existing EmailDeliveryAdapter interface.
+Layer 2 — HTML Template
 
-2. Configure:
-   
-   - Base URL
-   - API endpoint
-   - API key
-   - Request timeout
-   - Retry policy
+Store the static email structure, CSS styling, section layouts, and placeholders in a dedicated template file.
 
-3. Store credentials in server-side environment variables.
+Use the existing template system, or Handlebars if compatible with the current architecture.
 
-4. Support sending:
-   
-   - Email subject
-   - HTML body
-   - Recipient email addresses
-   - Execution ID / correlation ID
+Layer 3 — Renderer
 
-5. IMPORTANT: Inspect or confirm the actual Agent Builder workflow contract before implementing payload mapping.
-   
-   Do not assume that input_value alone supports structured recipient, subject and HTML body fields.
+Inject calculated report data into the fixed template.
 
-6. Ensure the Agent Builder workflow sends HTML as the email HTML body, not as plain text.
+The renderer should only format values, render rows, escape dynamic content, and apply visual styles.
 
-7. Implement response parsing and error handling.
+It must not calculate business KPIs or independently classify VIPs.
 
-8. Distinguish:
-   
-   - Request accepted
-   - Email send confirmed
-   - Delivery confirmed, if supported
-   - Failed
-   - Unknown outcome
+Avoid large hardcoded HTML strings embedded directly in report calculation functions.
 
-9. HTTP 200 alone must not be treated as proof of inbox delivery.
+7. Email Compatibility
 
-10. Support timeout handling, safe retry behavior and duplicate-send prevention.
+Optimize for Outlook and Knox Portal Mail.
 
-11. Redact API keys and sensitive email content from application logs.
+Requirements:
 
-12. Implement integration tests using mocked API responses.
+- Inline CSS on all important visual elements.
+- Table-based layout.
+- No JavaScript.
+- No external CSS.
+- No dependency on CSS Grid or Flexbox.
+- No externally hosted fonts.
+- Readable fallback if rounded corners or shadows are unsupported.
+- Proper UTF-8 encoding for Vietnamese names.
+- Correct escaping of user-generated content.
+- Appropriate column widths and text wrapping.
+- No horizontal overflow at the intended 800px width where practical.
 
-13. Provide a controlled manual test path using an explicitly configured test recipient.
+The final HTML must be delivered as HTML content, not escaped markup or plain text.
 
-Constraints
+8. Preview and Testing
 
-- Do not hardcode API keys.
-- Do not expose credentials to React.
-- Do not send emails to production recipient groups during tests.
-- Do not change HTML rendering logic from Phase 2.
-- Do not implement automatic scheduling yet.
+Use the same renderer for:
 
-Deliverables
+- HTML Preview in Automated Reports.
+- Test email delivery.
+- Scheduled production delivery.
 
-Working Agent Builder Email Adapter, configuration documentation, error handling, integration tests and verified HTML email sending where a test endpoint is available.
+Add or update tests for:
 
-If the actual workflow payload contract is unavailable, implement the adapter interface and mock tests, then clearly identify the missing contract rather than inventing fields.
+- Dynamic KPI values.
+- Correct section rows and columns.
+- Empty sections.
+- Vietnamese Unicode names.
+- Grade and status badges.
+- No PIC information in detailed tables.
+- HTML escaping.
+- Consistent output across preview and delivery.
 
-SEHC Email Engine — Phase 4: Scheduler & Delivery History
+Generate a sample preview with representative test data.
 
-Continue from Phases 1–3.
+9. Implementation Constraints
 
-Objective
+Do not modify unrelated modules.
 
-Enable automatic execution of configured report schedules using the existing Automated Reports management UI.
+Do not redesign the React dashboard.
 
-1. Scheduler
+Do not change KPI business rules unless explicitly approved.
 
-Support:
+Do not replace the existing Agent Builder API integration.
 
-- Daily
-- Weekly
-- Monthly
-- Timezone-aware execution
-- Enable/disable schedules
-- Last execution
-- Next execution
-- Manual Send Now
+Do not introduce LLM-based HTML generation.
 
-Use Asia/Ho_Chi_Minh as the default timezone.
+Do not hardcode sample KPI numbers in the production template.
 
-Implement durable execution tracking.
+Reuse existing components, styles, and utilities whenever possible.
 
-Prevent duplicate executions when the service restarts or multiple workers are running.
+10. Expected Deliverables
 
-Use an execution key based on schedule ID and scheduled occurrence.
+1. Updated reusable HTML email template.
+2. Required template renderer/data mapping changes.
+3. Consistent styling based on the existing React UI.
+4. Updated preview using the same renderer.
+5. Tests for rendering and data correctness.
+6. Brief summary of changed files and remaining Outlook compatibility limitations.
 
-2. Recipient Resolver
-
-At execution time:
-
-1. Load recipient_group_ids from the schedule.
-2. Fetch current recipient groups.
-3. Exclude inactive groups and members.
-4. Validate email addresses.
-5. Deduplicate recipients by normalized email.
-6. Return the final recipient list.
-
-Do not store duplicated recipient email lists inside schedules.
-
-If no valid recipients exist, mark the execution as failed or skipped with an explicit reason.
-
-3. Execution Flow
-
-Scheduler
-→ Create Execution
-→ Load Report Definition
-→ Collect Report Data
-→ Render HTML
-→ Resolve Recipients
-→ Send via Agent Builder Adapter
-→ Record Results
-
-4. Delivery History
-
-Persist:
-
-- execution_id
-- schedule_id
-- report_type
-- template_version
-- trigger_type
-- scheduled_at
-- started_at
-- completed_at
-- status
-- recipient count
-- success count
-- failure count
-- provider response metadata
-- error details
-
-Use the existing Delivery History tab.
-
-Support real filtering, searching and execution details.
-
-Do not create fake successful deliveries.
-
-5. Failure Handling
-
-Implement:
-
-- Configurable timeout
-- Bounded retry
-- Retry backoff
-- Safe duplicate prevention
-- Execution logging
-- Error classification
-- Manual retry where safe
-
-Do not automatically retry an uncertain send outcome unless provider idempotency or delivery reconciliation makes it safe.
-
-6. UI Integration
-
-Update:
-
-- Active schedule status
-- Last run
-- Next run
-- Send Now
-- Delivery History
-- Reports Sent KPI
-- Delivery Success Rate KPI
-
-Ensure the UI displays actual backend data.
-
-7. Tests
-
-Test:
-
-- Daily/weekly/monthly triggers
-- Restart recovery
-- Duplicate execution prevention
-- Inactive schedules
-- Recipient deduplication
-- Empty recipient groups
-- Provider failures
-- Timeout behavior
-- Manual Send Now
-- Delivery History persistence
-
-Deliverables
-
-A working scheduler, recipient resolver, execution manager and integrated Delivery History.
-
-Run available tests and build successfully.
-
-SEHC Email Engine — Phase 5: End-to-End Integration & Extensibility
-
-Continue from Phases 1–4.
-
-Objective
-
-Complete the Automated Reports module and prepare the Email Engine for additional HTML report types and future LangGraph integration.
-
-Requirements
-
-1. Verify the complete end-to-end workflow:
-   
-   Report Schedule
-   → Scheduler
-   → Report Registry
-   → Data Provider
-   → HTML Renderer
-   → Recipient Resolver
-   → Email API
-   → Delivery History
-
-2. Ensure the three Automated Reports tabs are fully integrated:
-   
-   - Schedules
-   - Recipient Groups
-   - Delivery History
-
-3. Ensure consistent SEHC UI styling across all tabs.
-
-4. Verify that Preview Email and actual email delivery use the same HTML renderer.
-
-5. Implement a central report type registry used by the UI and backend.
-
-6. Report types without implemented data providers/templates must not be selectable for active sending.
-
-7. Make it possible to register new report types without modifying Email Engine Core.
-
-8. Define integration interfaces for future LangGraph agents that may generate optional AI summaries or recommendations.
-
-9. Keep deterministic calculations outside the LLM.
-
-10. Implement structured execution logs and operational health checks.
-
-11. Verify authorization for report management, recipient data and sending.
-
-12. Test with the existing VIP Engagement & Take-Care Reminder report.
-
-13. Verify Vietnamese characters, tables, summary cards and email styling.
-
-14. Test HTML output in available email clients or document any client rendering that could not be verified.
-
-15. Run the full test suite, type checks and production build.
-
-Additional Report Types
-
-Prepare registration points for:
-
-- VIP KPI Performance Report
-- Monthly Executive Summary
-- Media Event Report
-- Personnel Change Report
-
-Do not invent business rules for these reports.
-
-If their actual data providers or templates have not been implemented, keep them disabled or marked as unavailable.
-
-Deliverables
-
-Provide:
-
-- Final architecture
-- Complete file changes
-- API contracts
-- Report registry
-- Template registry
-- Execution flow
-- Deployment/configuration guide
-- Test results
-- Known limitations
-- Future LangGraph integration points
-
-Do not rewrite unrelated application modules.
-
-====
-5 End-to-end hoạt động, thêm report type mới không phải sửa Core
-5. Hai điểm cần đặc biệt chú ý
-Thứ nhất — API hiện tại. Bạn đã có Agent Builder API gọi bằng input_value. Nhưng để triển khai Phase 3 chính xác, cần xác định workflow đó nhận subject, recipient list và HTML body như thế nào. Nếu workflow chỉ nhận một chuỗi, chúng ta có thể cần quy định một JSON envelope trong input_value, đồng thời cập nhật workflow để parse nó.
-Thứ hai — Template HTML. Không nên cho mỗi schedule sở hữu một bản HTML riêng. Schedule chỉ tham chiếu report_type; Report Registry xác định template và data provider. Một template có thể phục vụ nhiều schedule khác nhau, mỗi schedule có lịch gửi và recipient groups riêng.
-Tôi khuyên bắt đầu Phase 1 và Phase 2 trước. Sau hai phase đó, bạn sẽ có nền tảng Email Engine và một HTML report hoàn chỉnh, xem được bằng nút Preview Email mà chưa cần kích hoạt việc gửi mail thực tế.
+Final goal: The email should visually resemble the SEHC Engagement KPI dashboard while remaining a robust, data-driven HTML email template suitable for automated delivery.
