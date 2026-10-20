@@ -1,402 +1,393 @@
-Task: Redesign VIP Engagement & Take-Care Reminder HTML Email
+Task: Build a Professional Asset Management Dashboard
 
-1. Objective
+You are a Senior Frontend Engineer and UI/UX Designer.
 
-Redesign the existing VIP Engagement & Take-Care Reminder HTML email to closely match the visual design of the current SEHC Engagement KPI React dashboard.
+Create a modern, enterprise-grade Asset Management Dashboard using HTML5, CSS3, and Vanilla JavaScript.
 
-The email must look like a modern enterprise dashboard rather than a plain HTML report.
+Use the provided dashboard screenshot as the primary visual reference. Reproduce its overall layout, visual hierarchy, spacing, color palette, charts, sidebar, cards, and typography as closely as possible.
 
-Key architectural requirement:
+1. Technology Requirements
 
-The HTML structure and CSS must be implemented as a reusable, fixed template. KPI calculations, VIP classification, and report data preparation must remain separate from the presentation layer.
+- HTML5 for semantic structure.
+- CSS3 for all styling, using CSS variables.
+- Vanilla JavaScript for rendering, filtering, and interaction.
+- Chart.js for interactive charts.
+- Lucide Icons via CDN.
+- Google Fonts: Inter.
+- No React, Vue, Angular, Tailwind, Bootstrap, or backend.
+- All mock data must be stored separately in "data.js".
+- The dashboard must run locally with a simple static HTTP server.
 
-Do not generate a new HTML layout for every email execution. Only inject calculated data into the existing template.
+File structure:
 
-2. Inspect Existing Implementation First
+asset-dashboard/
+├── index.html
+├── css/
+│   └── dashboard.css
+├── js/
+│   ├── data.js
+│   ├── dashboard.js
+│   └── charts.js
+└── README.md
 
-Before making changes, inspect:
+2. Business Context
 
-- Existing React Engagement KPI dashboard components and their CSS/design tokens.
-- Existing "vip_engagement_reminder" report definition and HTML renderer.
-- Current report data preparation and VIP classification logic.
-- Shared Email Engine template infrastructure.
-- HTML preview and delivery execution paths.
+The system manages R&D asset requests across eight departments:
 
-Reuse the current architecture wherever possible.
+1. SW Engineering
+2. System Platform
+3. SQA
+4. Product
+5. AV Enterprise
+6. Android
+7. Monitor
+8. Mac OS
 
-Do not rewrite Email Engine, Scheduler, recipient groups, delivery history, or Agent Builder integration.
+There are four major request categories:
 
-3. Visual Design Requirements
+MRO Items
 
-Create a professional dashboard-style email with:
+- Items requested for purchase by R&D teams.
+- Include procurement and monthly budget management.
+- This is the highest-priority business category.
 
-- Maximum content width: 800px.
-- White background with subtle light-gray sections.
-- Samsung-inspired blue as the primary accent.
-- Compact enterprise typography.
-- Consistent table spacing and thin borders.
-- Color-coded KPI cards and section headers.
-- Grade badges (A/B/C) matching the React UI.
-- Colored status badges for overdue, due soon, and on track.
-- Clearly separated sections with comfortable spacing.
+Import Items
 
-Use inline CSS and table-based layout for email compatibility.
+- Items shipped from headquarters or external locations.
+- Track shipping, arrival, receiving, and completion.
 
-Avoid dependencies on JavaScript, external stylesheets, CSS Grid, Flexbox, or unsupported browser-only features.
+LPR Items
 
-Suggested Design Tokens
+- Items requested from existing factory warehouse inventory.
+- Track availability, allocation, and delivery.
 
-Use the React UI's actual design tokens when available. The following are fallback values:
+Exception Production Items
 
-/* Reference values; convert to inline styles */
---primary: #2563eb;
---navy: #142c57;
---background: #f5f7fb;
---surface: #ffffff;
---header-bg: #edf2f8;
---border: #dce4ee;
---text-primary: #172b4d;
---text-secondary: #64748b;
+- Items requested for new production by factory production lines.
+- Track approval, production, and completion.
 
---success: #079455;
---success-bg: #e8f7ef;
+MRO Budget is the most important financial feature, but all four categories must be represented in the Overview.
 
---warning: #f59e0b;
---warning-bg: #fff5dc;
+3. Main Layout
 
---danger: #dc3545;
---danger-bg: #fdecee;
+Create a full-screen desktop dashboard with:
 
---info: #3178f6;
---info-bg: #eaf2ff;
+Left Sidebar (240px)
 
-4. Email Layout
+Dark navy gradient background.
 
-A. Main Header
+Navigation:
 
-Create a dark-blue header containing:
+- Dashboard
+- Requests (expandable)
+  - MRO Items
+  - Import Items
+  - LPR Items
+  - Exception Production
+- Inventory Assets
+- Budget Management
+- Reports
+- Settings
 
-- SEHC EXTERNAL AFFAIRS
-- VIP Engagement & Take-Care Reminder
-- Report date
-- Active VIP count
+Active navigation uses a blue background and white text.
 
-Suggested HTML:
+Top Header
 
-<table width="100%" cellpadding="0" cellspacing="0"
-       style="border-collapse:collapse;background:#142c57;">
-  <tr>
-    <td style="padding:26px 28px;color:#ffffff;
-               font-family:Arial,sans-serif;">
-      <div style="font-size:12px;letter-spacing:1px;
-                  color:#cbdaf5;">
-        SEHC EXTERNAL AFFAIRS
-      </div>
+Display:
 
-      <div style="font-size:23px;font-weight:700;
-                  margin-top:8px;line-height:1.3;">
-        VIP Engagement &amp; Take-Care Reminder
-      </div>
+- Page title: Asset Management
+- Subtitle: Manage requests, budget, and assets for R&D
+- Time period dropdown
+- Department filter dropdown
+- Search input
+- Notification icon
+- User avatar
 
-      <div style="font-size:13px;color:#dbeafe;
-                  margin-top:8px;">
-        As of {{reportDate}} · {{summary.totalVips}} active VIPs
-      </div>
-    </td>
-  </tr>
-</table>
+Dashboard Tabs
 
-B. Report Metadata
+Horizontal tabs:
 
-Display report date, report type, generated time, schedule name, and version in a compact two-column table.
+- Overview (default)
+- MRO & Budget
+- Import Items
+- LPR Items
+- Exception Production
+- Departments
+- Performance
+- Inventory
 
-Use light-gray backgrounds and small, readable typography.
+Tabs must be interactive and display different content without reloading the page.
 
-C. KPI Summary Cards
+4. Overview Tab
 
-Display five KPI cards:
+Reproduce the visual layout of the reference screenshot.
 
-1. Total VIPs — Blue
-2. Not Yet Met — Neutral
-3. Immediate Attention — Red
-4. Due Soon — Orange
-5. On Track — Green
+Section A: KPI Summary
 
-Each card must show a large numeric value and a small uppercase label.
+Four cards in one row:
 
-Example KPI card:
+1. Total Requests: 248
+2. Pending: 42
+3. Completed: 186
+4. Overdue: 20
 
-<table width="100%" cellpadding="0" cellspacing="0"
-       style="border-collapse:collapse;
-              background:#eaf2ff;
-              border:1px solid #c9ddff;
-              border-top:4px solid #3178f6;">
-  <tr>
-    <td align="center" style="padding:16px 8px;">
-      <div style="font-family:Arial,sans-serif;
-                  font-size:27px;font-weight:bold;
-                  color:#2563eb;">
-        {{summary.totalVips}}
-      </div>
-      <div style="font-family:Arial,sans-serif;
-                  font-size:11px;color:#64748b;
-                  padding-top:5px;">
-        TOTAL VIPS
-      </div>
-    </td>
-  </tr>
-</table>
+Each card includes:
 
-Arrange all five cards in a single row at desktop width, using nested HTML tables.
+- Colored icon
+- Label
+- Large numeric value
+- Supporting text
 
-Use graceful fallback behavior for narrower email clients.
+Section B: Request Category Cards
 
-5. Four Report Sections
+Four cards in one row:
 
-Replace the existing detailed VIP table with four separate sections.
+MRO Items:
 
-Section 1: Not Yet Met (X)
-
-Theme: Blue / neutral.
-
-Columns:
-
-VIP Name| Organization| Grade| SEHC Greeting Level| Min Frequency
+- 68 requests
+- 75% completed
+- Blue theme
 
-Section 2: Immediate Attention (Y)
-
-Theme: Red.
-
-Columns:
-
-VIP Name| Organization| Grade| Min Frequency| Last Meeting| Next Due| Days Overdue
-
-Section 3: Due Soon (Z)
-
-Theme: Orange.
-
-Columns:
-
-VIP Name| Organization| Grade| Min Frequency| Last Meeting| Next Due| Days Remaining
-
-Section 4: On Track (U)
-
-Theme: Green.
-
-Columns:
-
-VIP Name| Organization| Grade| Last Meeting| Next Due| Status
-
-Do not display PIC information anywhere in the detailed tables, including secondary text beneath VIP names.
-
-Use existing classification rules and avoid introducing new KPI calculations.
-
-If section definitions overlap under current business rules, preserve the existing classification semantics and clarify the expected grouping before changing them.
-
-Example Section Header
+Import Items:
 
-<table width="100%" cellpadding="0" cellspacing="0"
-       style="border-collapse:collapse;
-              background:#fdecee;
-              border-left:5px solid #dc3545;">
-  <tr>
-    <td style="padding:13px 16px;
-               font-family:Arial,sans-serif;
-               font-size:16px;font-weight:bold;
-               color:#172b4d;">
-      Immediate Attention
-      <span style="color:#dc3545;">
-        ({{summary.immediateAttention}})
-      </span>
-    </td>
-  </tr>
-</table>
-
-Example Table Styling
-
-<table width="100%" cellpadding="0" cellspacing="0"
-       style="border-collapse:collapse;
-              font-family:Arial,sans-serif;
-              table-layout:fixed;">
-  <thead>
-    <tr style="background:#edf2f8;">
-      <th align="left"
-          style="padding:11px 10px;
-                 border:1px solid #dce4ee;
-                 font-size:11px;
-                 color:#334155;">
-        VIP Name
-      </th>
-      <th align="left"
-          style="padding:11px 10px;
-                 border:1px solid #dce4ee;
-                 font-size:11px;
-                 color:#334155;">
-        Organization
-      </th>
-    </tr>
-  </thead>
-  <tbody>
-    {{{sectionRows}}}
-  </tbody>
-</table>
-
-Extend the table with the appropriate columns for each section.
-
-Example Data Row
-
-<tr style="background:#ffffff;">
-  <td style="padding:11px 10px;
-             border-bottom:1px solid #e2e8f0;
-             font-size:12px;font-weight:600;
-             color:#172b4d;">
-    {{vipName}}
-  </td>
-  <td style="padding:11px 10px;
-             border-bottom:1px solid #e2e8f0;
-             font-size:12px;color:#475569;">
-    {{organization}}
-  </td>
-</tr>
-
-Grade Badge Example
-
-<span style="display:inline-block;
-             background:#dbeafe;
-             color:#2563eb;
-             border:1px solid #bfdbfe;
-             padding:3px 8px;
-             border-radius:5px;
-             font-size:11px;
-             font-weight:bold;">
-  A
-</span>
-
-Map badge colors to actual React UI grade colors.
-
-Status Badge Example
-
-<span style="display:inline-block;
-             background:#e8f7ef;
-             color:#079455;
-             padding:4px 9px;
-             border-radius:6px;
-             font-size:11px;
-             font-weight:600;">
-  On Track
-</span>
-
-Do not depend on border radius being supported by every email client.
-
-6. Fixed Template + Dynamic Data Architecture
-
-Separate the implementation into three logical layers:
-
-Layer 1 — Data Preparation
-
-Reuse the existing report business logic to calculate KPI results and prepare a structured report model.
-
-Example:
-
-{
-  "reportDate": "2026-10-18",
-  "summary": {
-    "totalVips": 23,
-    "notYetMet": 12,
-    "immediateAttention": 3,
-    "dueSoon": 0,
-    "onTrack": 8
-  },
-  "sections": {
-    "notYetMet": [],
-    "immediateAttention": [],
-    "dueSoon": [],
-    "onTrack": []
-  }
+- 74 requests
+- 65% completed
+- Teal theme
+
+LPR Items:
+
+- 82 requests
+- 90% completed
+- Purple theme
+
+Exception Production:
+
+- 24 requests
+- 45% completed
+- Orange theme
+
+Each card must include an icon, count, description, progress bar, and navigation interaction.
+
+Section C: Main Analytics
+
+Three charts in one row:
+
+Chart 1: Requests by Type
+
+- Doughnut chart
+- Four request categories
+- Center total value
+- Legend with counts and percentages
+
+Chart 2: Monthly Request Trend
+
+- Multi-series line chart
+- Four lines: MRO, Import, LPR, Exception
+- Monthly data
+- Interactive tooltip
+
+Chart 3: MRO Budget Snapshot
+
+- Budget utilization percentage
+- Allocated budget
+- Committed and actual spending
+- Remaining budget
+- Progress bar
+- Grouped bar chart comparing budget allocation and utilization across eight departments
+
+Section D: Operational Analytics
+
+Three panels:
+
+Requests by Department
+
+- Stacked bar chart
+- Eight departments
+- Four request categories
+
+Request Status Distribution
+
+- Horizontal stacked bar chart
+- Completed / In Progress / Pending / Overdue
+- Separate row for each request category
+
+Recent Activities
+
+- Table containing:
+  - Date
+  - Request Type
+  - Request ID
+  - Item / Description
+  - Department
+  - Status
+- Colored status badges
+- View All action
+
+5. MRO & Budget Tab
+
+This is the highest-priority detailed analytics page.
+
+Include:
+
+- Total MRO Requests
+- Allocated Budget
+- Actual Spending
+- Committed Budget
+- Remaining Budget
+- Budget Utilization
+- Monthly Budget vs Actual Spending (12 months)
+- Budget by Department
+- MRO Request Status
+- Purchase Lead Time
+- Pending Approvals
+- Top Spending Departments
+- Recent MRO Purchase Requests
+
+Ensure actual spending and committed spending are separate, non-overlapping amounts.
+
+6. Other Tabs
+
+Import Items:
+
+- Shipment status
+- Origin
+- Expected arrival
+- Receiving status
+- Overdue shipments
+
+LPR Items:
+
+- Warehouse stock availability
+- Pending allocations
+- Issued items
+- Fulfillment rate
+
+Exception Production:
+
+- Production requests
+- Approval status
+- In-production items
+- Expected completion
+- Overdue production requests
+
+Departments:
+
+- Department comparison
+- Request counts by category
+- MRO spending by department
+- Completion rates
+
+Performance:
+
+- Average fulfillment time
+- Approval lead time
+- Overdue rate
+- Completion rate
+- Bottleneck analysis
+
+Inventory:
+
+- Total registered assets
+- Available assets
+- Assigned assets
+- Maintenance assets
+- Asset list
+
+7. Design System
+
+Use a professional enterprise SaaS visual style.
+
+Colors:
+
+:root {
+  --sidebar-bg: #1e2d46;
+  --primary: #2563eb;
+  --mro: #2676f3;
+  --import: #00a99d;
+  --lpr: #8b5cf6;
+  --exception: #f97316;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --background: #f4f7fb;
+  --surface: #ffffff;
+  --text-primary: #14213d;
+  --text-secondary: #64748b;
+  --border: #e2e8f0;
+  --card-radius: 12px;
 }
 
-The example values are illustrative only.
+Styling:
 
-Layer 2 — HTML Template
+- Light background
+- Dark navy sidebar
+- White cards
+- Soft shadows
+- Subtle borders
+- Rounded corners
+- Consistent 16–24px spacing
+- Smooth hover transitions
+- Compact but readable enterprise dashboard
+- Consistent chart colors for each request category
+- Desktop-first design at 1920×1080
+- Responsive at 1440px, 1024px, and mobile widths
 
-Store the static email structure, CSS styling, section layouts, and placeholders in a dedicated template file.
+Avoid excessive gradients, oversized cards, decorative graphics, or unnecessary whitespace.
 
-Use the existing template system, or Handlebars if compatible with the current architecture.
+8. Data Architecture
 
-Layer 3 — Renderer
+Use JavaScript objects from "data.js" as the single source of truth.
 
-Inject calculated report data into the fixed template.
+Do not hardcode numerical metrics directly in HTML.
 
-The renderer should only format values, render rows, escape dynamic content, and apply visual styles.
+Derive KPI values, category totals, percentages, charts, and tables from the mock dataset.
 
-It must not calculate business KPIs or independently classify VIPs.
+Ensure mathematical consistency:
 
-Avoid large hardcoded HTML strings embedded directly in report calculation functions.
+- Total Requests = sum of category counts.
+- Request statuses must be mutually exclusive.
+- Completed + In Progress + Pending + Overdue = Total Requests.
+- Budget Available = Allocated - Actual Spent - Committed.
+- Budget utilization = (Actual Spent + Committed) / Allocated.
+- Department totals must match overall totals.
 
-7. Email Compatibility
+Support global filters:
 
-Optimize for Outlook and Knox Portal Mail.
+- Department
+- Time Period
 
-Requirements:
+All KPI cards, charts, and tables should update when filters change.
 
-- Inline CSS on all important visual elements.
-- Table-based layout.
-- No JavaScript.
-- No external CSS.
-- No dependency on CSS Grid or Flexbox.
-- No externally hosted fonts.
-- Readable fallback if rounded corners or shadows are unsupported.
-- Proper UTF-8 encoding for Vietnamese names.
-- Correct escaping of user-generated content.
-- Appropriate column widths and text wrapping.
-- No horizontal overflow at the intended 800px width where practical.
+Use realistic sample data across all eight departments and all four request categories.
 
-The final HTML must be delivered as HTML content, not escaped markup or plain text.
+9. Functional Requirements
 
-8. Preview and Testing
+Implement:
 
-Use the same renderer for:
+- Working sidebar navigation
+- Working tabs
+- Department filter
+- Period filter
+- Chart.js tooltips
+- Chart legends
+- Hover effects
+- Search/filter for Recent Activities
+- View All navigation
+- Empty-state handling
+- Responsive layout
 
-- HTML Preview in Automated Reports.
-- Test email delivery.
-- Scheduled production delivery.
+Use reusable JavaScript functions for KPI cards, charts, and tables.
 
-Add or update tests for:
+Avoid duplicated HTML structures and repeated business calculations.
 
-- Dynamic KPI values.
-- Correct section rows and columns.
-- Empty sections.
-- Vietnamese Unicode names.
-- Grade and status badges.
-- No PIC information in detailed tables.
-- HTML escaping.
-- Consistent output across preview and delivery.
+10. Expected Output
 
-Generate a sample preview with representative test data.
+Generate the complete working project, including all files.
 
-9. Implementation Constraints
+Do not generate only a screenshot or static design.
 
-Do not modify unrelated modules.
+Implement real HTML, CSS, and JavaScript.
 
-Do not redesign the React dashboard.
+All tabs must contain meaningful sample content and working charts.
 
-Do not change KPI business rules unless explicitly approved.
-
-Do not replace the existing Agent Builder API integration.
-
-Do not introduce LLM-based HTML generation.
-
-Do not hardcode sample KPI numbers in the production template.
-
-Reuse existing components, styles, and utilities whenever possible.
-
-10. Expected Deliverables
-
-1. Updated reusable HTML email template.
-2. Required template renderer/data mapping changes.
-3. Consistent styling based on the existing React UI.
-4. Updated preview using the same renderer.
-5. Tests for rendering and data correctness.
-6. Brief summary of changed files and remaining Outlook compatibility limitations.
-
-Final goal: The email should visually resemble the SEHC Engagement KPI dashboard while remaining a robust, data-driven HTML email template suitable for automated delivery.
+The final UI should closely resemble the provided screenshot and be suitable as a prototype for an internal enterprise Asset Management System.
