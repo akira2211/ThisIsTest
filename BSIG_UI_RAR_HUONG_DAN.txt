@@ -1,0 +1,34 @@
+HUONG DAN GHEP VA GIAI NEN BSIG_UI.rar
+
+Tai hai file sau ve cung mot thu muc:
+  BSIG_UI.rar.part-000
+  BSIG_UI.rar.part-001
+
+Linux / macOS:
+
+1. Ghep hai phan theo dung thu tu:
+   cat BSIG_UI.rar.part-000 BSIG_UI.rar.part-001 > BSIG_UI.rar
+
+2. Kiem tra SHA-256:
+   Linux:  sha256sum BSIG_UI.rar
+   macOS:  shasum -a 256 BSIG_UI.rar
+   Ket qua mong doi:
+   fb11e8cf036cb28b3ff6a34815291ce7efe3ae46241a0f432c688e211af2ee70
+
+3. Giai nen bang ung dung ho tro RAR, hoac neu da cai unrar:
+   unrar x BSIG_UI.rar
+
+Windows PowerShell (chay trong thu muc chua hai phan):
+
+1. Ghep theo dung thu tu:
+   cmd /c copy /b BSIG_UI.rar.part-000+BSIG_UI.rar.part-001 BSIG_UI.rar
+
+2. Kiem tra SHA-256:
+   Get-FileHash BSIG_UI.rar -Algorithm SHA256
+   Ket qua mong doi:
+   fb11e8cf036cb28b3ff6a34815291ce7efe3ae46241a0f432c688e211af2ee70
+
+3. Mo BSIG_UI.rar bang WinRAR hoac 7-Zip de giai nen.
+
+Day la hai phan chia byte cua mot file RAR, khong phai hai RAR volume;
+can ghep chung thanh BSIG_UI.rar truoc khi giai nen.

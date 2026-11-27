@@ -1,0 +1,40 @@
+HUONG DAN GHEP VA LOAD DOCKER IMAGE BSIG UI
+
+Cac file can tai ve, dat trong cung mot thu muc:
+  bsig_ui.tar.part-000
+  bsig_ui.tar.part-001
+  bsig_ui.tar.part-002
+  bsig_ui.tar.part-003
+  bsig_ui.tar.part-004
+
+Linux / macOS:
+
+1. Ghep cac phan theo dung thu tu:
+   cat bsig_ui.tar.part-000 bsig_ui.tar.part-001 bsig_ui.tar.part-002 bsig_ui.tar.part-003 bsig_ui.tar.part-004 > bsig_ui.tar
+
+2. Kiem tra SHA-256 (Linux):
+   sha256sum bsig_ui.tar
+   Tren macOS: shasum -a 256 bsig_ui.tar
+   Ket qua mong doi:
+   f0b18387f78239aeb3f5b9f524d44dcf0a74bb9b265df5b38fb548bc60f31031
+
+3. Nap image vao Docker:
+   docker load -i bsig_ui.tar
+   docker image inspect bsig_ui:latest
+
+Windows PowerShell (chay trong thu muc chua nam file):
+
+1. Ghep file theo dung thu tu:
+   cmd /c copy /b bsig_ui.tar.part-000+bsig_ui.tar.part-001+bsig_ui.tar.part-002+bsig_ui.tar.part-003+bsig_ui.tar.part-004 bsig_ui.tar
+
+2. Kiem tra SHA-256:
+   Get-FileHash bsig_ui.tar -Algorithm SHA256
+   Ket qua mong doi:
+   f0b18387f78239aeb3f5b9f524d44dcf0a74bb9b265df5b38fb548bc60f31031
+
+3. Nap image vao Docker:
+   docker load -i bsig_ui.tar
+   docker image inspect bsig_ui:latest
+
+Luu y: bsig_ui.tar la file goc lon, khong can upload len Git neu da upload du 5 phan.
+Image nay la ban development UI mock; chua ket noi backend.
